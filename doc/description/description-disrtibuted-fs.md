@@ -1,5 +1,5 @@
-## Netowork Programming Project 2015
-## Aaro Lehikoinen
+### Netowork Programming Project 2015
+### Aaro Lehikoinen
 
 Distributed file server
 =======================
@@ -16,7 +16,7 @@ Directory server stores metadata of files and file servers and file system direc
 File servers store file contents and related metadata. They serve client requests. File servers contact the directory to update it and to get metadata of requested files. Each server store only some files. To access other files, it must ask directory which servers store the file and get the file from them.
 
 ### Client
-Clients can view, edit, create and remove files and directories in the file system. Clients communicate only with their file servers.
+Clients can view, edit, create and remove files and directories in the file system. Clients communicate only with their file servers. When started, a client establishes a connection to the server it is configured to use. This connection is kept open and used for all communication until client is finished.
 
 Operations
 ----------
@@ -37,7 +37,7 @@ Commands include
 - Directory deletion (`rmdir`, `rm -r`)
 - Directory content listing (`ls`)
 - File creation (using editor, `touch`)
-- File editing (open file for editing)
+- File editing (open file for editing, close and save when finished)
 - File deletion (`rm`)
 - File copying (`cp`)
 - File search (`find`)
@@ -53,4 +53,47 @@ Command execution include following steps
 5. File server releases locks
 6. File server communicates the result to client
 7. Done
+
+Communication
+-------------
+
+### File server --- Client
+
+- **handshake**
+	- on client start
+	- client registers with its hostname and username
+	- server introduces itself
+	- server initializes all necessary data structures
+- **client commands**
+	- client sends using the same connection
+	- same connection also for response
+- **change server**
+	- server tells client to use other server
+	- directory server's load balancing decision
+- **quit**
+	- client quits
+	- server releases all locks and data structures
+- **status query**
+	- both can send
+	- keepalive messages
+	- only when connection is otherwise idle
+
+### File server *A* --- File server *B*
+
+- **request file**
+	- *A* needs to serve file to a client
+	- downloads a copy from *B*
+
+### File server --- Directory server
+
+- **handshake**
+- **acquire a lock**
+	- file server's client opens a file
+	- file server needs a lock
+	- directory may S-lock or X-lock the file
+- **status information**
+	- file server sends information about it's load
+- **client redirect command**
+	- directory server load balance instruction
+	- tells file server to tell it's clients to use another server
 
