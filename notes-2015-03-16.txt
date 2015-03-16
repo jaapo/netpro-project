@@ -1,0 +1,15 @@
+send detailed description as attachment
+filename nwp2015_detailed_description_firstname_lasname.txt
+
+design document
+higher level, architecural picture of system
+each process: what are functionalities, data structures
+interfaces between processes/components
+diagrams, state diagram
+signals
+frames
+how frames are coded
+timeouts, retries
+
+send monday next week first draft document. discussion time (maybe 10-16) before final document. draft with minimal functionality.
+
