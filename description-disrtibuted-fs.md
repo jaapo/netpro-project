@@ -1,4 +1,5 @@
-# Netowork Programming Project
+## Netowork Programming Project 2015
+## Aaro Lehikoinen
 
 Distributed file server
 =======================
@@ -12,10 +13,10 @@ Components
 Directory server stores metadata of files and file servers and file system directory hierarchy. Directory server also manages locks. It keeps track of all file servers, the files they store and their load.
 
 ### File servers
-File servers store file contents and related metadata. They serve client requests. File servers contact the directory to update it and to get metadata of requested files.
+File servers store file contents and related metadata. They serve client requests. File servers contact the directory to update it and to get metadata of requested files. Each server store only some files. To access other files, it must ask directory which servers store the file and get the file from them.
 
 ### Client
-Clients can view, edit, create and remove files and directories in the file system. Clients communicate with their file servers.
+Clients can view, edit, create and remove files and directories in the file system. Clients communicate only with their file servers.
 
 Operations
 ----------
@@ -28,18 +29,18 @@ Directory server detects servers with heavy load and instructs them to instruct 
 
 ### File access
 
-Clients access files using file servers.
+Clients access files using file servers. Access is transparent. If client's file server doesn't have the file, server will find it and the client will be able to use it.
 
 Commands include
 
-- Directory creation
-- Directory deletion
-- Directory content listing
-- File creation
+- Directory creation (`mkdir`)
+- Directory deletion (`rmdir`, `rm -r`)
+- Directory content listing (`ls`)
+- File creation (using editor, `touch`)
 - File editing (open file for editing)
-- File deletion
-- File copying
-- File search
+- File deletion (`rm`)
+- File copying (`cp`)
+- File search (`find`)
 
 Command execution include following steps
 
