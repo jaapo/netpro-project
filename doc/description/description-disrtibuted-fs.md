@@ -18,6 +18,26 @@ File servers store file contents and related metadata. They serve client request
 ### Client
 Clients can view, edit, create and remove files and directories in the file system. Clients communicate only with their file servers. When started, a client establishes a connection to the server it is configured to use. This connection is kept open and used for all communication until client is finished.
 
+Architecture
+------------
+
+                                                    
+             +-----------+                          
+             | Directory |                          
+             | Server D  |                         
+             +-----------+                          
+             /            \                           
+            /              \                          
+           /                \                         
+  +---------------+          +---------------+                       
+  | File Server A |          | File Server B |                     
+  +---------------+          +---------------+ 
+        /        \                 /       \
+  +----------+ +----------+  +----------+ +----------+                   
+  | Client 1 | | Client 2 |  | Client 3 | | Client 4 |
+  +----------+ +----------+  +----------+ +----------+                           
+                                                   
+
 Operations
 ----------
 
