@@ -14,7 +14,7 @@ When client process is started, it creates a TCP connection to the file server p
 
 Client issues commands to the server using the same initial TCP connection. If command requires file data transmission, a separate connection is opened for the purpose. Server's control message includes a request to open this new connection. Client should then accept servers connection to port xxxxx2 and receive data described by the control message.
 
-When client exits, it closes the connection by sending a control message to the server. Server acknowledges this.
+When client exits, it closes the connection by sending a **quit** message to the server. Server acknowledges this.
 
 ### Message format
 
@@ -22,8 +22,10 @@ All messages have a common message format. Messages have headers and sections. M
 
 All identifiers are 64 bits long. Command number takes 16 bits. *next section* field value is 16 bits.
 
-Every section ends with a the *next section* field. Rest of section format depends on the section type. A message may contain 1 to 127 sections.
+Every section ends with a the *next section* field. Rest of section format depends on the section type. A message may contain 0 to 127 sections.
 
+    +----------------------------------------------------------------+
+    |                      Message ID                                |
     +----------------------------------------------------------------+
     |                      Server ID                                 |
     +----------------------------------------------------------------+
@@ -41,27 +43,29 @@ Message type determines rest of the message contents. Possible message types are
 
 #### Sections
 
-Valid section types are message specific.
+Valid sections are message specific. Section types are *integer* and *string*.
 
-##### status
+*integer* section is always 4-bytes long and it contains only one 4-byte signed integer. The integer is in twos-complement representation.
+
+*string* section has two fields: *string length* and *data*. *string length* is a 32-bit unsigned integer and *data* is an arbitrary length ASCII data field. *data* must be *string length* bytes long.
 
 ##### handshake
 
+Two string sections: hostname, username.
 
-##### quit
 ##### command
 
 Section types are *command number* and *arguments*.
-
-###### command number
-
 *command number* section is an 8-bit section with command number.
+*argument* section contains string argument. Command message may contain multiple *argument* sections.
 
-###### argument
+##### quit
 
-This section contains two fields: *argument length* and *argument data*.
+Message contains no payload data.
 
-*argument length* tells how many bytes of data does the argument contain. *argument length* may be 0. *argument data* is the variable length payload.
+##### status
+
+Message contains no payload data.
 
 ##### response
 
