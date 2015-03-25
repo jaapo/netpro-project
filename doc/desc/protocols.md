@@ -45,7 +45,7 @@ Message type determines rest of the message contents. Possible message types are
 
 Valid sections are message specific. Section types are *integer* and *string*.
 
-*integer* section is always 4-bytes long and it contains only one 4-byte signed integer. The integer is in twos-complement representation.
+*integer* section is always 4-bytes long and it contains only one 4-byte signed integer. Integer is in big-endian byte order and the leftmost bit is sign bit.
 
 *string* section has two fields: *string length* and *data*. *string length* is a 32-bit unsigned integer and *data* is an arbitrary length ASCII data field. *data* must be *string length* bytes long.
 
@@ -71,3 +71,10 @@ Message contains no payload data.
 
 Directory control protocol
 --------------------------
+
+Directory control protocol DCP uses TCP port xxxxx3. File servers make requests to the Directory server using this protocol. It is similar with FAP, but has it's own messages.
+
+File content transfer protocol
+------------------------------
+
+Content transfer protocol FCTP uses TCP port xxxxx4 and is used in File server to File server communication. It is similar with FAP, but the messages are different.

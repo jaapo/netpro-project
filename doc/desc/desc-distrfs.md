@@ -21,24 +21,26 @@ Clients can view, edit, create and remove files and directories in the file syst
 Architecture
 ------------
 
+Simplified hierarchial architecture
                                                     
-             +-----------+                          
-             | Directory |                          
-             | Server D  |                         
-             +-----------+                          
-             /            \                           
-            /              \                          
-           /                \                         
-  +---------------+          +---------------+                       
-  | File Server A | <------> | File Server B |                     
-  +---------------+          +---------------+ 
-        /        \                 /       \
-  +----------+ +----------+  +----------+ +----------+                   
-  | Client 1 | | Client 2 |  | Client 3 | | Client 4 |
-  +----------+ +----------+  +----------+ +----------+                           
+							 +-----------+                          
+							 | Directory |                          
+							 | Server D  |                         
+							 +-----------+                          
+							 /            \                           
+							/              \                          
+						 /                \                         
+		+---------------+          +---------------+                       
+		| File Server A | <------> | File Server B |                     
+		+---------------+          +---------------+ 
+					/        \                 /       \
+		+----------+ +----------+  +----------+ +----------+                   
+		| Client 1 | | Client 2 |  | Client 3 | | Client 4 |
+		+----------+ +----------+  +----------+ +----------+                           
                                                    
 Every client uses only one file server to access files at a time. All file servers use the centralized directory. File servers communicate with each other to excange files.
 
+<center><img alt="System architecture diagram" src="arch.svg" width="75%"></center>
 
 Operations
 ----------
@@ -64,7 +66,7 @@ Commands include
 - File copying (`cp`)
 - File search (`find`)
 
-Command execution include following steps
+Command execution steps:
 
 1. Client issues the command to the file server it's connected to
 2. File server checks the user session and interprets the command
