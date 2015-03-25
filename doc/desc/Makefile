@@ -3,7 +3,7 @@ cat $1.md | mkd2html -css markdown.css >html/$2-$1.html
 endef
 
 htmlfiles=01-desc.html 02-arch.html
-mdfiles=head.md desc.md arch.md protocols.md
+mdfiles=head.md desc.md arch.md protocols.md files.md signals.md ui.md
 extras=$(addprefix html/,arch.svg markdown.css)
 
 all: $(addprefix html/,$(htmlfiles))

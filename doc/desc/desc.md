@@ -13,12 +13,6 @@ Clients can view, edit, create and remove files and directories in the file syst
 Operations
 ----------
 
-### Load balancing
-
-File servers send information about their status and load to directory server periodically. Directory server may also explicitly request a status update if a file server hasn't contacted it for a while.
-
-Directory server detects servers with heavy load and instructs them to instruct their clients to use other servers if possible.
-
 ### File access
 
 Clients access files using file servers. Access is transparent. If client's file server doesn't have the file, server will find it and the client will be able to use it.
@@ -45,6 +39,12 @@ Command execution steps:
 5. File server releases locks
 6. File server communicates the result to client
 7. Done
+
+### Load balancing
+
+File servers send information about their status and load to directory server periodically. Directory server may also explicitly request a status update if a file server hasn't contacted it for a while.
+
+Directory server detects servers with heavy load and instructs them to instruct their clients to use other servers if possible.
 
 Communication
 -------------
