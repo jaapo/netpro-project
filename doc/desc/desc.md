@@ -1,11 +1,3 @@
-### Netowork Programming Project 2015
-### Aaro Lehikoinen
-
-Distributed file server
-=======================
-
-A distributed file server consists of a directory server, multiple file servers and clients. Directory server stores file metadata. File servers store files. Clients read and write files on servers.
-
 Components
 ----------
 
@@ -17,30 +9,6 @@ File servers store file contents and related metadata. They serve client request
 
 ### Client
 Clients can view, edit, create and remove files and directories in the file system. Clients communicate only with their file servers. When started, a client establishes a connection to the server it is configured to use. This connection is kept open and used for all communication until client is finished.
-
-Architecture
-------------
-
-Simplified hierarchial architecture
-                                                    
-							 +-----------+                          
-							 | Directory |                          
-							 | Server D  |                         
-							 +-----------+                          
-							 /            \                           
-							/              \                          
-						 /                \                         
-		+---------------+          +---------------+                       
-		| File Server A | <------> | File Server B |                     
-		+---------------+          +---------------+ 
-					/        \                 /       \
-		+----------+ +----------+  +----------+ +----------+                   
-		| Client 1 | | Client 2 |  | Client 3 | | Client 4 |
-		+----------+ +----------+  +----------+ +----------+                           
-                                                   
-Every client uses only one file server to access files at a time. All file servers use the centralized directory. File servers communicate with each other to excange files.
-
-<center><img alt="System architecture diagram" src="arch.svg" width="75%"></center>
 
 Operations
 ----------
