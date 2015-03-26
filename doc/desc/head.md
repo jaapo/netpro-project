@@ -1,8 +1,13 @@
-### Netowork Programming Project 2015
-### Aaro Lehikoinen
+<small>Network Programming Project 2015<br>Aaro Lehikoinen</small>
 
 Distributed file server
 =======================
 
-A distributed file server consists of a directory server, multiple file servers and clients. Directory server stores file metadata. File servers store files. Clients read and write files on servers.
-
+<ul>
+	<li><a href="#desc">Task description</a></li>
+	<li><a href="#arch">Architecture</a></li>
+	<li><a href="#protocols">Protocols</a></li>
+	<li><a href="#files">Files</a></li>
+	<li><a href="#signals">Signals</a></li>
+	<li><a href="#ui">User interface</a></li>
+</ul>

@@ -1,19 +1,12 @@
-Components
-----------
+<a id="desc"></a>
+Task description
+----------------
 
-### Directory server
-Directory server stores metadata of all files and file servers and file system directory hierarchy. Directory server also manages locks. It keeps track of all file servers, the files they store and their load.
+Distributed file system stores files and enables access to them. User can create, read, edit and remove files using an user interface. Files are saved on file servers in distributed manner, but are distributed mainly on-demand. A centralized directory server keeps track of the files and servers. Clients communicate their requests to file server.
 
-### File servers
-File servers store file contents and related metadata. They serve client requests. File servers contact the directory to update it and to get metadata of requested files. Each server store only some files, usually files their clients use most. To access other files, it must ask directory which servers store the file and get the file from them.
+### Operations
 
-### Client
-Clients can view, edit, create and remove files and directories in the file system. Clients communicate only with their file servers. When started, a client establishes a connection to the server it is configured to use. This connection is kept open and used for all communication until client is finished.
-
-Operations
-----------
-
-### File access
+#### File access
 
 Clients access files using file servers. Access is transparent. If client's file server doesn't have the file, server will find it and the client will be able to use it.
 
@@ -40,16 +33,15 @@ Command execution steps:
 6. File server communicates the result to client
 7. Done
 
-### Load balancing
+#### Load balancing
 
 File servers send information about their status and load to directory server periodically. Directory server may also explicitly request a status update if a file server hasn't contacted it for a while.
 
 Directory server detects servers with heavy load and instructs them to instruct their clients to use other servers if possible.
 
-Communication
--------------
+### Communication
 
-### File server --- Client
+#### File server --- Client
 
 - **handshake**
 	- on client start
@@ -70,13 +62,13 @@ Communication
 	- keepalive messages
 	- only when connection is otherwise idle
 
-### File server *A* --- File server *B*
+#### File server *A* --- File server *B*
 
 - **request file**
 	- *A* needs to serve file to a client
 	- downloads a copy from *B*
 
-### File server --- Directory server
+#### File server --- Directory server
 
 - **handshake**
 - **acquire a lock**
