@@ -18,14 +18,14 @@ When client exits, it closes the connection by sending a **quit** message to the
 
 #### Message format
 
-All messages have a common message format. Messages have headers and sections. Message header contains *message_id*, *client id*, *server id*, *file system id*, *message type* and *next section* fields.
+All messages have a common message format. Messages have headers and sections. Message header contains *transaction_id*, *client id*, *server id*, *file system id*, *message type* and *next section* fields.
 
 All identifiers are 64 bits long. Command number takes 16 bits. *next section* field value is 16 bits.
 
 Every section ends with a the *next section* field. Rest of section format depends on the section type. A message may contain 0 to 127 sections.
 
     +----------------------------------------------------------------+
-    |                      Message ID                                |
+    |                      Transaction ID                            |
     +----------------------------------------------------------------+
     |                      Server ID                                 |
     +----------------------------------------------------------------+
@@ -37,12 +37,12 @@ Every section ends with a the *next section* field. Rest of section format depen
     +----------------------------------------------------------------+
     | ....                                           | Next section  |
 
-##### Message type
+*transaction_id* identifies a single client server interaction. Transactions are initiated by clients and server's reponse must contain the same *transaction_id*.
 
-Message type determines rest of the message contents. Possible message types are *handshake*, *status*, *quit*, *command* and *response*. Their codes are 1, 2, 3, 4 and 5 respectively.
+##### Message type
+Message type determines rest of the message contents. Possible message types are *handshake*, *status*, *quit*, *command*, *acknowledgement*, *error* and *response*. Their codes are 1, 2, 3, 4 and 5 respectively.
 
 ##### Sections
-
 Valid sections are message specific. Section types are *integer*, *string* and *binary*.
 
 *integer* section is always 4-bytes long and it contains only one 4-byte signed integer. Integer is in big-endian byte order and the leftmost bit is sign bit.
@@ -52,67 +52,71 @@ Valid sections are message specific. Section types are *integer*, *string* and *
 *binary* section is same as *string* but it may contain non-ASCII characters.
 
 ##### handshake
-
 Two string sections: hostname, username.
 
 ##### command
-
 Every command message contains a *command number* section. It is an integer section with command number.
 Messages contain additional sections depending on command.
 
 ###### create
 Command number is 1.
-Message contains a string section which contains full path of file to create.
+Message sections: full path string, file type integer (1=regular file, 2=directory)
 
 ###### open
 Command number is 2.
-Message contains a string section with full path of file.
+Message sections: full path string
+
+###### stat
+Command number is 3.
+Message sections: full path string
 
 ###### read
-Command number is 3.
-Message contains a string section with file path, an integer section with offset to start reading from and another integer section with byte count to read. If the bytecount is 0 whole file is read.
+Command number is 4.
+Message sections: file path string, integer offset to start reading from, integer byte count to read. If byte count is **0** whole file is read.
 
 ###### write
-Command number is 4.
-Message contains a string section with file path, an integer section with byte count of write and a binary section with data to write.
+Command number is 5.
+Message sections: full path string, binary data to write
 
 ###### delete
-Command number is
-Message contains a string section 
+Command number is 6.
+Message sections: full file path as string
 
 ###### copy
-Command number is
-Message contains a string section 
+Command number is 7
+Message sections: source file path string and destination file path string
 
 ###### find
-Command number is
-Message contains a string section 
+Command number is 8
+Message sections: search term string, directory to search for
 
-
-
-| command name | number | argument | description |
-| ------------ | ------ | -------- | ----------- |
-| **create**   | 1      | full path of file | creates an empty file to the file system with filename |
-| **open**     | 2      | full path of file | opens a file in the file system |
-| **read**     | 3      | full path of file | retrieves file contents |
-| **write**    | 3      | full path of file | 
+###### list
+Command number is 9
+Message sections: path of directory as string
 
 ##### quit
-
 Message contains no payload data.
 
 ##### status
-
 Message contains no payload data.
 
+##### Responses
+Response messages are sent from file server to client. Every client message has it's own response message.
+
+###### error
+If an error occurs when server is handling the request, an error message is sent back to client.
+Sections: integer error number, string error message
+
+##### acknowledgement
+This is used if the request requires no data in response.
+
 ##### response
-
-
+*response* messages are responses for *command* messages.
 
 ### Directory control protocol
+Directory control protocol DCP uses TCP port xxxxx3. File servers make requests to the Directory server using this protocol. It is similar to FAP, but has it's own messages.
 
-Directory control protocol DCP uses TCP port xxxxx3. File servers make requests to the Directory server using this protocol. It is similar with FAP, but has it's own messages.
+This protocol is used to handle locks and query directory.
 
 ### File content transfer protocol
-
-Content transfer protocol FCTP uses TCP port xxxxx4 and is used in File server to File server communication. It is similar with FAP, but the messages are different.
+Content transfer protocol FCTP uses TCP port xxxxx4 and is used in File server to File server communication. It is similar to FAP, but the messages are different.

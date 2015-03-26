@@ -2,7 +2,9 @@
 Task description
 ----------------
 
-Distributed file system stores files and enables access to them. User can create, read, edit and remove files using an user interface. Files are saved on file servers in distributed manner, but are distributed mainly on-demand. A centralized directory server keeps track of the files and servers. Clients communicate their requests to file server.
+Distributed file system stores files and enables access to them. Files are organized in hierarchial directory structure and they are identified by Unix style paths.
+
+User can create, read, edit and remove files using an user interface. Files are saved on file servers in distributed manner, but are distributed mainly on-demand - that is servers store only files that their clients use. A centralized directory server keeps track of the files and servers. Clients communicate their requests to file server.
 
 ### Operations
 

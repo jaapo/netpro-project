@@ -66,17 +66,17 @@ h2 {
   color: black; }
 
 h3 {
-  font-size: 18px; }
+  font-size: 20px; }
 
 h4 {
-  font-size: 16px; }
+  font-size: 18px; }
 
 h5 {
-  font-size: 14px; }
+  font-size: 16px; }
 
 h6 {
   color: #777777;
-  font-size: 14px; }
+  font-size: 16px; }
 
 p, blockquote, ul, ol, dl, li, table, pre {
   margin: 15px 0; }

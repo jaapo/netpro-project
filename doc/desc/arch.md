@@ -31,7 +31,8 @@ Simplified hierarchial architecture
 		| Client 1 | | Client 2 |  | Client 3 | | Client 4 |
 		+----------+ +----------+  +----------+ +----------+                           
                                                    
-Every client uses only one file server to access files at a time. All file servers use the centralized directory. File servers communicate with each other to excange files.
+Every client uses only one file server to access files at a time. All file servers use the centralized directory. File servers communicate with each other to exchange files.
 
+#### Architecture diagram with interfaces
 <center><img alt="System architecture diagram" src="arch.svg" width="75%"></center>
 
