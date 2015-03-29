@@ -42,10 +42,8 @@ Clients and file servers use the file access protocol, FAP. FAP uses TCP. TCP po
 
 #### Outline
 
-When client process is started, it creates a TCP connection to the file server port xxxxx and sends the **handshake** message. Server registers the client and sends a response.
-
-Client issues commands to the server using the same initial TCP connection. If command requires file data transmission, a separate connection is opened for the purpose. Server's control message includes a request to open this new connection. Client should then accept servers connection to port xxxxx2 and receive data described by the control message.
-
+When client process is started, it creates a TCP connection to the file server port xxxxx and sends the **handshake** message. Server registers the client and sends a response. Response contains a port number for data transfer.
+Client issues commands to the server using the same initial TCP connection. If command requires file data transmission, the data connection is used for the purpose.
 When client exits, it closes the connection by sending a **quit** message to the server. Server acknowledges this.
 
 #### Message format
@@ -112,7 +110,7 @@ Command names (and command numbers):
 
 - write (6)
 
-	Message sections: full path string, binary data to write
+	Message sections: full path string, data byte count (integer)
 
 - delete (7)
 
@@ -134,7 +132,7 @@ Command names (and command numbers):
 Response messages are sent from file server to client in response to client messages.
 
 ###### handshake response (2)
-Sections: server name (string).
+Sections: server name (string), TCP port number for data transfer (integer)
 
 ###### ack (7)
 Message contains no payload
@@ -152,31 +150,17 @@ Response messages (and their numbers) are
 
 	contains no payload data
 
-- file status (2)
+- file information (2)
 
-	sections:
+	one file info section
 
-	- file size in bytes (integer)
-	- modification time (integer)
-	- editor username (string)
+- data out (3)
 
-- data in (3)
+	sections: data length in bytes (integer)
 
-	sections:
+- file list (6)
 
-	- port (integer)
-
-- data out (4)
-
-	sections:
-
-	- data length in bytes (integer)
-
-- file list (5)
-
-	sections:
-
-	- arbitrary number of string sections, each containing a single file name
+	sections: arbitrary number of string sections, each containing a single file name
 
 ### Directory control protocol
 Directory control protocol DCP uses TCP port xxxxx3. File servers make requests to the Directory server using this protocol. It is similar to FAP.
@@ -224,23 +208,48 @@ Message sections and numbers:
 
 	Recursive section's integer value is treated as boolean
 
-- advertise (5)
+- search (5)
+
+	Sections: search parameters (string)
+
+- advertise (6)
 	
 	Sections: path (string), action (integer), username (string)
 
 	Action can be delete (1), create (2), modify (3)
 
-- disconnect (6)
+- disconnect (7)
 	
 	Message contains no payload
 
-- ack (7)
+- ack (8)
 
 	Message contains no payload
 
-- file info (8)
+- file info (9)
 
 	Message sections: file count, **n** >= 0 (integer), **n** file info sections (file info)
 
 ### File content transfer protocol
-Content transfer protocol FCTP uses TCP port xxxxx4 and is used in File server to File server communication. It is similar to FAP, but the messages are different.
+Content transfer protocol FCTP uses TCP port xxxxx4 and is used in File server to File server communication. It's very simple.
+
+#### Message format
+FCTP is a binary protocol. Every message contain 64-bit *transaction id*, *from server id*, *to server id* and *file system id* fields, 16-bit *message type* and first *next section* fields.
+
+    +----------------------------------------------------------------+
+    |                      Transaction ID                            |
+    +----------------------------------------------------------------+
+    |                      Server ID                                 |
+    +----------------------------------------------------------------+
+    |                      File system ID                            |
+    +----------------------------------------------------------------+
+    | Message type   | Next section   | Section data ....            |
+    +----------------------------------------------------------------+
+    | ....                                           | Next section  |
+
+There are 3 message types:
+
+- download (1), one string section: file path
+- ok (2), one binary section: file contents
+- error (3), sections: error number (integer), error messsage (string)
+	
