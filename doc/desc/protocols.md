@@ -40,7 +40,7 @@ Every section ends with a the *next section* field. Rest of section format depen
 *transaction_id* identifies a single client server interaction. Transactions are initiated by clients and server's reponse must contain the same *transaction_id*.
 
 ##### Message type
-Message type determines rest of the message contents. Possible message types are *handshake*, *status*, *quit*, *command*, *acknowledgement*, *error* and *response*. Their codes are 1, 2, 3, 4 and 5 respectively.
+Message type determines rest of the message contents. Possible message types are *handshake*, *handshake response*, *status*, *quit*, *command*, *ack*, *error* and *response*. Message type numbers are in parentheses in the headers.
 
 ##### Sections
 Valid sections are message specific. Section types are *integer*, *string* and *binary*.
@@ -51,67 +51,89 @@ Valid sections are message specific. Section types are *integer*, *string* and *
 
 *binary* section is same as *string* but it may contain non-ASCII characters.
 
-##### handshake
-Two string sections: hostname, username.
+##### handshake (message type number: 1)
+Two string sections: hostname, username. The **client id** and **server id** fields are 0 in this message.
 
-##### command
+##### quit (3)
+Message contains no payload data.
+
+##### status (4)
+Message contains no payload data.
+
+##### command (5)
 Every command message contains a *command number* section. It is an integer section with command number.
 Messages contain additional sections depending on command.
+Following command descriptions contain the command number in parentheses.
 
-###### create
-Command number is 1.
+- create (command number: 1)
 Message sections: full path string, file type integer (1=regular file, 2=directory)
 
-###### open
-Command number is 2.
+- open (2)
 Message sections: full path string
 
-###### stat
-Command number is 3.
+- close (3)
 Message sections: full path string
 
-###### read
-Command number is 4.
+- stat (4)
+Message sections: full path string
+
+- read (5)
 Message sections: file path string, integer offset to start reading from, integer byte count to read. If byte count is **0** whole file is read.
 
-###### write
-Command number is 5.
+- write (6)
 Message sections: full path string, binary data to write
 
-###### delete
-Command number is 6.
-Message sections: full file path as string
+- delete (7)
+Message sections: full file path as string, file type integer (1=regular file, 2=directory)
 
-###### copy
-Command number is 7
-Message sections: source file path string and destination file path string
+- copy (8)
+Message sections: source file path string and destination file path string, file type integer (1=regular file, 2=directory)
 
-###### find
-Command number is 8
-Message sections: search term string, directory to search for
+- find (9)
+Message sections: search term string, string path of directory to search for
 
-###### list
-Command number is 9
+- list (10)
 Message sections: path of directory as string
 
-##### quit
-Message contains no payload data.
-
-##### status
-Message contains no payload data.
-
 ##### Responses
-Response messages are sent from file server to client. Every client message has it's own response message.
+Response messages are sent from file server to client in response to client messages.
 
-###### error
+###### ack (7)
+Message contains no payload
+
+###### error (8)
 If an error occurs when server is handling the request, an error message is sent back to client.
 Sections: integer error number, string error message
 
-##### acknowledgement
-This is used if the request requires no data in response.
+##### response (6)
+*response* messages are responses to *command* messages. Response messages contain *response number* section. It is an integer section containing the response number.
 
-##### response
-*response* messages are responses for *command* messages.
+Response messages (and their numbers) are
+
+- ok (1)
+	contains no payload data
+
+- file status (2)
+	sections:
+
+	- file size in bytes (integer)
+	- modification time (integer)
+	- creator (string)
+
+- data in (3)
+	sections:
+
+	- port (integer)
+
+- data out (4)
+	sections:
+
+	- data length in bytes (integer)
+
+- file list (5)
+	sections:
+
+	- arbitrary number of string sections, each containing a single file name
 
 ### Directory control protocol
 Directory control protocol DCP uses TCP port xxxxx3. File servers make requests to the Directory server using this protocol. It is similar to FAP, but has it's own messages.
