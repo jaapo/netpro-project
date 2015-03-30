@@ -2,7 +2,10 @@
 Protocols
 ---------
 
-There are three protocols. One for client-server communication, second for communication between file servers and the directory server, and third for communication between file servers. All protocols are somewhat similar in message format, but each of them have messages for their own purposes. All protocol messages contain headers including transaction id, ids of communicating parties and message type field, and then payload data split into sections.
+There are three protocols. One for client-server communication, second for communication between file servers and the directory server, and third for communication between file servers. 
+
+### Protocol messages
+All three protocols are similar in message format, but each of them have messages for their own purposes. All protocol messages contain headers including transaction id, ids of communicating parties and message type field, and then payload data split into sections.
 
 **General message format**
 
@@ -17,7 +20,7 @@ There are three protocols. One for client-server communication, second for commu
     +----------------------------------------------------------------+
     | ....                                           | Next section  |
 
-### Sections
+#### Sections
 Sections are typed pieces of data and they are placed consecutively after the header. Before each section there is a *next section* field which tells how following bytes should be interpreted.
 
 Valid sections are message specific. Section types are
@@ -37,17 +40,17 @@ Valid sections are message specific. Section types are
 	- modification time (unsigned, 32-bits, big-endian)
 	- file size in bytes (unsigned, 32-bits, big-endian)
 
-### File access protocol
+#### File access protocol
 
 Clients and file servers use the file access protocol, FAP. FAP uses TCP. TCP port xxxxx is used for control messages and TCP port xxxxx2 for data.
 
-#### Outline
+##### Outline
 
 When client process is started, it creates a TCP connection to the file server port xxxxx and sends the **handshake** message. Server registers the client and sends a response. Response contains a port number for data transfer.
 Client issues commands to the server using the same initial TCP connection. If command requires file data transmission, the data connection is used for the purpose.
 When client exits, it closes the connection by sending a **quit** message to the server. Server acknowledges this.
 
-#### Message format
+##### Message format
 
 All messages have a common message format. Messages have headers and sections. Message header contains *transaction_id*, *client id*, *server id*, *file system id*, *message type* and *next section* fields.
 
@@ -70,20 +73,19 @@ Every section ends with a the *next section* field. Rest of section format depen
 
 *transaction_id* identifies a single client server interaction. Transactions are initiated by clients and server's reponse must contain the same *transaction_id*.
 
-##### Message type
+##### Message types
 Message type determines rest of the message contents. Possible message types are *handshake*, *handshake response*, *status*, *quit*, *command*, *ack*, *error* and *response*. Message type numbers are in parentheses in the headers.
 
-
-##### handshake (message type number: 1)
+###### handshake (message type number: 1)
 Two string sections: hostname, username. The **client id** and **server id** fields are 0 in this message.
 
-##### quit (3)
+###### quit (3)
 Message contains no payload data.
 
-##### status (4)
+###### status (4)
 Message contains no payload data.
 
-##### command (5)
+###### command (5)
 Every command message contains a *command number* section. It is an integer section with command number.
 Messages contain additional sections depending on command.
 
@@ -129,7 +131,7 @@ Command names (and command numbers):
 
 	Message sections: path of directory as string
 
-##### Responses
+##### Response message types
 Response messages are sent from file server to client in response to client messages.
 
 ###### handshake response (2)
@@ -163,12 +165,12 @@ Response messages (and their numbers) are
 
 	sections: arbitrary number of string sections, each containing a single file name
 
-### Directory control protocol
+#### Directory control protocol
 Directory control protocol DCP uses TCP port xxxxx3. File servers make requests to the Directory server using this protocol. It is similar to FAP.
 
 This protocol is used to handle locks and query directory.
 
-#### Message format
+##### Message format
 DCP is a binary protocol. Every message contain 64-bit *transaction id*, *server id* and *file system id* fields, 16-bit *message type* and first *next section* fields.
 
     +----------------------------------------------------------------+
@@ -182,7 +184,7 @@ DCP is a binary protocol. Every message contain 64-bit *transaction id*, *server
     +----------------------------------------------------------------+
     | ....                                           | Next section  |
 
-##### Message type
+###### Message type
 Message types are *handshake*, *handshake response*, *lock*, *get info*, *advertise*, *disconnect*, *response*.
 
 Message sections and numbers:
@@ -231,10 +233,10 @@ Message sections and numbers:
 
 	Message sections: file count, **n** >= 0 (integer), **n** file info sections (file info)
 
-### File content transfer protocol
+#### File content transfer protocol
 Content transfer protocol FCTP uses TCP port xxxxx4 and is used in File server to File server communication. It's very simple.
 
-#### Message format
+##### Message format
 FCTP is a binary protocol. Every message contain 64-bit *transaction id*, *from server id*, *to server id* and *file system id* fields, 16-bit *message type* and first *next section* fields.
 
     +----------------------------------------------------------------+
@@ -253,4 +255,11 @@ There are 3 message types:
 - download (1), one string section: file path
 - ok (2), one binary section: file contents
 - error (3), sections: error number (integer), error messsage (string)
-	
+
+### Protocol operations
+#### FAP
+FAP is a request-response protocol. Client sends a request and waits for server's response. Requests are sent when user writes a command to the text interface. If some command requires multiple requests, client software takes care of it.
+
+This list describes communication related to each client command.
+
+##### 

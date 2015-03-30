@@ -11,7 +11,6 @@ body > *:first-child {
   margin-top: 0 !important; }
 body > *:last-child {
   margin-bottom: 0 !important; }
-
 a {
   color: #4183C4; }
 a.absent {
@@ -275,3 +274,10 @@ pre {
   pre code, pre tt {
     background-color: transparent;
     border: none; }
+
+div#toc>ol.tocentry {
+	padding-left: 0;
+}
+li.tocentry {
+	list-style-type: none;
+}
