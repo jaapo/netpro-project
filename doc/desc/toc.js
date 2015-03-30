@@ -1,7 +1,6 @@
-function createTocEntry(header, n) {
+function createTocEntry(header, id) {
 	var level = parseInt(header.tagName[1]);
 	var link = document.createElement('a');
-	var id = 'h' + level + '-' + n;
 	link.href = '#' + id;
 	header.id = id;
 	link.innerHTML = header.innerHTML;
@@ -49,7 +48,7 @@ function createToc() {
 				ol = stack.pop();
 			}
 		}
-		ol.appendChild(createTocEntry(h, n[level]));
+		ol.appendChild(createTocEntry(h, ltext.replace(/\./g,'-')));
 		lastlevel = level;
 	}
 }

@@ -1,28 +1,6 @@
-
-function getHeaders(e, tocl, level) {
-	h=e.getElementsByTagName('h'+level);
-	if (h.length==0) return;
-
-	var tocol = document.createElement('ol');
-	tocl.appendChild(tocol);
-
-	for (var i=0,header=h[i];i<h.length;header=h[++i]) {
-		link = document.createElement('a');
-		id = 'h' + level + '-' + i;
-		link.href = '#' + id;
-		header.id = id;
-		link.text = header.innerHTML
-		
-		entry = document.createElement('li');
-		entry.appendChild(link);
-		toce.appendChild(entry);
-	}
-}
-
-function createTocEntry(header, n) {
+function createTocEntry(header, id) {
 	var level = parseInt(header.tagName[1]);
 	var link = document.createElement('a');
-	var id = 'h' + level + '-' + n;
 	link.href = '#' + id;
 	header.id = id;
 	link.innerHTML = header.innerHTML;
@@ -70,7 +48,7 @@ function createToc() {
 				ol = stack.pop();
 			}
 		}
-		ol.appendChild(createTocEntry(h, n[level]));
+		ol.appendChild(createTocEntry(h, ltext.replace(/\./g,'-')));
 		lastlevel = level;
 	}
 }

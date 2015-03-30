@@ -155,15 +155,15 @@ Response messages (and their numbers) are
 
 - file information (2)
 
-	one file info section
+	sections: file count, **n** >= 0 (integer), **n** file info sections (file info)
 
 - data out (3)
 
 	sections: data length in bytes (integer)
 
-- file list (6)
+<!--- file list (6)
 
-	sections: arbitrary number of string sections, each containing a single file name
+	sections: arbitrary number of string sections, each containing a single file name-->
 
 #### Directory control protocol
 Directory control protocol DCP uses TCP port xxxxx3. File servers make requests to the Directory server using this protocol. It is similar to FAP.
@@ -185,7 +185,7 @@ DCP is a binary protocol. Every message contain 64-bit *transaction id*, *server
     | ....                                           | Next section  |
 
 ###### Message type
-Message types are *handshake*, *handshake response*, *lock*, *get info*, *advertise*, *disconnect*, *response*.
+Message types are *handshake*, *handshake response*, *lock*, *get info*, *search*, *advertise*, *disconnect*, *ack* and *file info*.
 
 Message sections and numbers:
 
@@ -207,9 +207,12 @@ Message sections and numbers:
 
 - get info (4)
 
-	Sections: recursive (integer), path (string)
+	Sections: recursion level (integer), path (string)
 
-	Recursive section's integer value is treated as boolean
+	Recursion level values:
+	- **0**: only one file's or directory's information
+	- **1**: only this directory contents
+	- **2** or more: recurse to this many levels to get file information
 
 - search (5)
 
@@ -260,6 +263,40 @@ There are 3 message types:
 #### FAP
 FAP is a request-response protocol. Client sends a request and waits for server's response. Requests are sent when user writes a command to the text interface. If some command requires multiple requests, client software takes care of it.
 
-This list describes communication related to each client command.
+This list describes communication related to each client action.
 
-##### 
+##### Client startup
+When client process starts it creates the FAP TCP connection to port xxxx1. After connection has been successfully initialized, client sends the **handshake** message and waits for server's **handshake response**. When server receives a **handshake** from client, it adds the client to its client list, assigns a data port for it, and replies with the **handshake response**. User is notified about server name and successful connection
+
+##### Commands
+User writes commands to the interface to access files. Each command is executed differently, most with a single message.
+
+###### create directory
+1. client sends **command** message with **command number** 1 and file type 2
+2. server tries to create the directory (process described in XXX)
+3. result is reported to the user
+	- if creation fails, an **error** message is sent to client and error message printed
+	- if creation succeeds, server responds with **response** message **ok**
+
+###### delete directory
+1. client sends **command** message with **command number** 7 and file type 2
+2. server tries to delete the directory (process described in XXX)
+3. result is reported to the user
+	- if deletion fails, an **error** message is sent to client and error message printed
+	- if deletion succeeds, server responds with **response** message **ok**
+
+###### list directory contents
+1. client sends **command** message with **command number** 10
+2. file server aquires an **s** lock to the directory
+	- error message is sent to client and printed to user
+3. file server gets directory contents from directory server
+	- error message is sent to client and printed to user
+4. file server sends **response** message with **file info** list
+5. client receives and prints file list
+
+###### create file
+###### edit file
+###### delete file
+###### read file
+###### copy file
+###### search file
