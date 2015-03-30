@@ -9,7 +9,9 @@ extras=$(addprefix html/,arch.svg markdown.css)
 all: $(addprefix html/,$(htmlfiles))
 
 .PHONY: full
-full: $(extras) $(mdfiles)
+full: html/doc.html
+	
+html/doc.html: $(extras) $(mdfiles)
 	cat $(mdfiles) | mkd2html -css markdown.css >html/doc.html
 
 html/01-desc.html: desc.md | html

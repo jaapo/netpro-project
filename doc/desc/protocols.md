@@ -29,10 +29,11 @@ Valid sections are message specific. Section types are
 - *binary* section is same as *string* but it may contain non-ASCII characters.
 
 - *file info* section contains following data:
-	- file name length integer (unsigned, 32-bits, big-endian)
-	- file name as ASCII string
+	- file type byte (1=regular file, 2=directory)
+	- file path length integer (unsigned, 32-bits, big-endian)
+	- file path as ASCII string
 	- user name length integer (unisgned, 32-bits, big-endian)
-	- last modified user name
+	- user name of last modifier
 	- modification time (unsigned, 32-bits, big-endian)
 	- file size in bytes (unsigned, 32-bits, big-endian)
 
@@ -214,7 +215,7 @@ Message sections and numbers:
 
 - advertise (6)
 	
-	Sections: path (string), action (integer), username (string)
+	Sections: action (integer), info (file info)
 
 	Action can be delete (1), create (2), modify (3)
 
