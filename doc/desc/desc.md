@@ -53,9 +53,9 @@ Directory server detects servers with heavy load and instructs them to instruct 
 - **client commands**
 	- client sends using the same connection
 	- same connection also for response
-- **change server**
+<!--- **change server**
 	- server tells client to use other server
-	- directory server's load balancing decision
+	- directory server's load balancing decision-->
 - **quit**
 	- client quits
 	- server releases all locks and data structures

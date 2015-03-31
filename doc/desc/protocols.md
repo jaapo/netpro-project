@@ -41,6 +41,21 @@ Valid sections are message specific. Section types are
 	- file size in bytes (unsigned, 32-bits, big-endian)
 	- file availability, number of servers currently storing the file (unsigned, 32-bits, big-endian)
 
+#### Errors
+Error codes are also same for all protocols. Error code usage is described in protocol operations section. Error messages should describe the error in more detail. For example "file /home/todo.txt doesn't exist".
+
+Error codes and explanations
+
+| code | explanation           |
+| ---- | --------------------- |
+| 1    | file not found      
+| 2    | file already exist
+| 3    | incompatible lock
+| 4    | command syntax error
+| 5    | file server unavailable
+| 6    | directory server unavailable
+| 7    | 
+| 8    | 
 #### File access protocol
 
 Clients and file servers use the file access protocol, FAP. FAP uses TCP. TCP port xxxxx is used for control messages and TCP port xxxxx2 for data.
@@ -185,7 +200,7 @@ DCP is a binary protocol. Every message contain 64-bit *transaction id*, *server
     +----------------------------------------------------------------+
     | ....                                           | Next section  |
 
-###### Message type
+##### Message type
 Message types are *handshake*, *handshake response*, *lock*, *get info*, *search*, *advertise*, *disconnect*, *ack* and *file info*.
 
 Message sections and numbers:
@@ -223,7 +238,7 @@ Message sections and numbers:
 	
 	Sections: action (integer), info (file info)
 
-	Action can be delete (1), create (2), modify (3), local copy removed (4)
+	Action can be delete (1), create (2), modify (3), local copy removed (4), invalidate (5)
 
 - disconnect (7)
 	
@@ -273,22 +288,29 @@ This list describes communication related to each client action.
 ##### Client startup
 When client process starts it creates the FAP TCP connection to port xxxx1. After connection has been successfully initialized, client sends the **handshake** message and waits for server's **handshake response**. When server receives a **handshake** from client, it adds the client to its client list, assigns a data port for it, and replies with the **handshake response**. Client opens another TCP connection to the server using remote port xxxx2. User is notified about server name and successful connection.
 
+##### Error handling
+If file server fails fullfilling a client request, it sends an **error** response to the client. This means that the current transaction is over and the operation failed. **error** message contains error number. Message contains also a string describing the error. File server must log errors. Client must show error's type and description to user.
+
+Possible errors are listed in the numbered list as sub-items.
+
 ##### Commands
 User writes commands to the interface to access files. Each command is executed differently, most with a single message.
 
 ###### create directory
-1. client sends **command** message with **command number** 1 and file type 2
-2. server tries to create the directory (process described in XXX)
-3. result is reported to the user
-	- if creation fails, an **error** message is sent to client and error message printed
-	- if creation succeeds, server responds with **response** message **ok**
+1. client: send **create** **command** message (**command number**=1 and **file type**=2)
+2. server: aquire **s** lock on directory's parent
+	- lock error is possible
+3. server: send **create** **advertisement** to the directory server
+4. server: receive directory server response
+	- already exists error is possible
+5. server: send **ok** **response** to client
 
 ###### delete directory
-1. client sends **command** message with **command number** 7 and file type 2
-2. server tries to delete the directory (process described in XXX)
-3. result is reported to the user
-	- if deletion fails, an **error** message is sent to client and error message printed
-	- if deletion succeeds, server responds with **response** message **ok**
+1. client: send **delete** **command** message (file type=2)
+2. server: delete message to directory server
+	- lock error is possible
+	- doesn't exist error is possible
+3. server: send **ok** **response** to client
 
 ###### list directory contents
 1. client sends **command** message with **command number** 10
@@ -354,3 +376,12 @@ User writes commands to the interface to access files. Each command is executed 
 4. server: receive **file info** response from directory server
 5. server: send **file information** message to client
 
+###### quit
+1. client: send **quit** **command** to server
+2. server: close client data connection
+3. server: reply to client **ok** **response**
+4. client: process close
+5. server: release all locks related to client
+6. server: free client data structures
+
+#### DCP
