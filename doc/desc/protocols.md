@@ -39,6 +39,7 @@ Valid sections are message specific. Section types are
 	- user name of last modifier
 	- modification time (unsigned, 32-bits, big-endian)
 	- file size in bytes (unsigned, 32-bits, big-endian)
+	- file availability, number of servers currently storing the file (unsigned, 32-bits, big-endian)
 
 #### File access protocol
 
@@ -222,7 +223,7 @@ Message sections and numbers:
 	
 	Sections: action (integer), info (file info)
 
-	Action can be delete (1), create (2), modify (3)
+	Action can be delete (1), create (2), modify (3), local copy removed (4)
 
 - disconnect (7)
 	
@@ -235,6 +236,10 @@ Message sections and numbers:
 - file info (9)
 
 	Message sections: file count, **n** >= 0 (integer), **n** file info sections (file info)
+
+- error (10)
+
+	Message sections: integer error number, string error message
 
 #### File content transfer protocol
 Content transfer protocol FCTP uses TCP port xxxxx4 and is used in File server to File server communication. It's very simple.
@@ -266,7 +271,7 @@ FAP is a request-response protocol. Client sends a request and waits for server'
 This list describes communication related to each client action.
 
 ##### Client startup
-When client process starts it creates the FAP TCP connection to port xxxx1. After connection has been successfully initialized, client sends the **handshake** message and waits for server's **handshake response**. When server receives a **handshake** from client, it adds the client to its client list, assigns a data port for it, and replies with the **handshake response**. User is notified about server name and successful connection
+When client process starts it creates the FAP TCP connection to port xxxx1. After connection has been successfully initialized, client sends the **handshake** message and waits for server's **handshake response**. When server receives a **handshake** from client, it adds the client to its client list, assigns a data port for it, and replies with the **handshake response**. Client opens another TCP connection to the server using remote port xxxx2. User is notified about server name and successful connection.
 
 ##### Commands
 User writes commands to the interface to access files. Each command is executed differently, most with a single message.
@@ -295,8 +300,57 @@ User writes commands to the interface to access files. Each command is executed 
 5. client receives and prints file list
 
 ###### create file
+1. client: send **command** message with **command number** 1 and file type 1
+2. server: acquire **s** lock to containing directory
+3. server: create the file to directory (implicit **x** locking)
+4. server: send **response** **ok** to client
+5. now client has the file open
+
+###### open file
+1. client: send **open** **command** to the server
+2. server: acquire necessary locks
+3. server: send **ok** **response**
+
 ###### edit file
+1. client: file must be open
+2. user: saves the file
+3. client: send **write** **command** message with content length information
+4. client: data connection to port xxxx2 must be open
+5. client: send data to xxxx2 port
+6. server: send **ok** **response** when data successfully received
+7. client: 
+	- if user has closed the file and is not editing it anymore goto step 8
+	- otherwise done
+8. client: send **close** **command**
+9. server: send **ok** **response**
+
 ###### delete file
+1. client: send **delete** **message** with file type 1
+2. server: aquire **x** lock on file
+3. server: send appropriate advertisement to directory server
+4. server: send client **error** or **response** **ok** message
+
 ###### read file
+1. client: file must be open
+2. client: send **read** **command** to server
+3. server: reply with **data out** **response**
+4. server: send data to data connection
+5. client: receive data from data connection
+6. client: data is passed to user
+
 ###### copy file
+1. client: send **copy** **command** to server
+2. server: acquire **s** lock to source file and destination directory
+3. server: create destination file (and get **x** lock)
+4. server: copy contents locally
+5. server: advertise new file to directory server
+6. server: free locks
+7. server: send client **ok** **response**
+
 ###### search file
+1. client: send **find** **command** to server
+2. server: parse client command parameters
+3. server: send **search** message to directory server
+4. server: receive **file info** response from directory server
+5. server: send **file information** message to client
+

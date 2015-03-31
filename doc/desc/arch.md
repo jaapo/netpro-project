@@ -22,7 +22,7 @@ Files are stored in server's local file system. File index for fast access and m
 #### Client
 Clients can view, edit, create and remove files and directories in the file system. Clients communicate only with their file servers. When started, a client establishes a connection to the server it is configured to use. This connection is kept open and used for all communication until client is finished.
 
-Client doesn't store any major data structures, most of the state is stored by its file server.
+Client knows what file it has open, but doesn't store any major data structures. Most of the state is stored by its file server.
 
 #### Simplified hierarchial architecture diagram
 
