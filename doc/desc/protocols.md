@@ -315,42 +315,43 @@ User writes commands to the interface to access files. Each command is executed 
 
 ###### create directory
 1. client: send **create** **command** message (**command number**=1 and **file type**=2)
-2. server: aquire **s** lock on directory's parent
-	- lock error is possible
 3. server: send **create** **advertisement** to the directory server
-4. server: receive directory server response
 	- already exists error is possible
+	- directory doesn't exist is possible (for parent directory)
+4. server: receive directory server response
 5. server: send **ok** **response** to client
-6. server: free the lock
 
 ###### delete directory
 1. client: send **delete** **command** message (file type=2)
-2. server: send **action** (action type=**delete**) message to directory server
+2. server: send **delete** message to directory server
 	- lock error is possible
 	- doesn't exist error is possible
+4. server: receive directory server response
 3. server: send **ok** **response** to client
 
 ###### list directory contents
 1. client: send **list** **command**
-2. server: aquire **s** lock to the directory
-	- lock error is possible
 3. server: send directory server **get info** **message** (**recursion level**=1)
 	- doesn't exist error is possible
 4. server: receive directory server response
-5. server: free the **s** lock
 6. server: send **file info** **response** to client
 
 ###### create file
 1. client: send **command** message with **command number** 1 and file type 1
-2. server: acquire **s** lock to containing directory
-3. server: create the file to directory (implicit **x** locking)
+2. server: send **create** message to directory server (implicit **x** locking)
+	- already exists error is possible
+3. server: get directory server response
+3. server: create the file to file server local data directory
 4. server: send **response** **ok** to client
 5. client: mark file as open
 
 ###### open file
 1. client: send **open** **command** to the server
-2. server: acquire necessary locks
+2. server: send **lock** message for an **x** lock
+	- lock error is possible
+	- doesn't exist error is possible
 3. server: send **ok** **response**
+4. client: mark file as open
 
 ###### edit file
 1. client: file must be open
@@ -363,13 +364,14 @@ User writes commands to the interface to access files. Each command is executed 
 	- if user has closed the file and is not editing it anymore goto step 8
 	- otherwise done
 8. client: send **close** **command**
-9. server: send **ok** **response**
+9. server: free file lock
+9. server: send **ok** **response** to client
 
 ###### delete file
-1. client: send **delete** **message** with file type 1
-2. server: aquire **x** lock on file
-3. server: send appropriate advertisement to directory server
-4. server: send client **error** or **response** **ok** message
+1. client: send **delete** **command** with file type 1
+3. server: send **delete** message to directory server
+	- doesn't exist error is possible
+4. server: send **response** **ok** to client
 
 ###### read file
 1. client: file must be open
@@ -381,11 +383,10 @@ User writes commands to the interface to access files. Each command is executed 
 
 ###### copy file
 1. client: send **copy** **command** to server
-2. server: acquire **s** lock to source file and destination directory
-3. server: create destination file (and get **x** lock)
+3. server: send **create** message to directory server (implicit **x** lock)
+	- already exist error is possible
 4. server: copy contents locally
-5. server: advertise new file to directory server
-6. server: free locks
+6. server: free **x** lock
 7. server: send client **ok** **response**
 
 ###### search file
