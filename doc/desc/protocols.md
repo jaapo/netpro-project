@@ -201,7 +201,7 @@ DCP is a binary protocol. Every message contain 64-bit *transaction id*, *server
     | ....                                           | Next section  |
 
 ##### Message type
-Message types are *handshake*, *handshake response*, *lock*, *get info*, *search*, *advertise*, *disconnect*, *ack* and *file info*.
+Message types are *handshake*, *handshake response*, *lock*, *create*, *read*, *update*, *delete*, *search*, *invalidate*, *replica*, *disconnect*, *ack* and *file info*.
 
 Message sections and numbers:
 
@@ -221,7 +221,11 @@ Message sections and numbers:
 
 	Lock types can be shared (1), exclusive (2) or free (0)
 
-- get info (4)
+- create (4)
+
+	Sections: info (file info)
+
+- read (5)
 
 	Sections: recursion level (integer), path (string)
 
@@ -230,29 +234,42 @@ Message sections and numbers:
 	- **1**: only this directory contents
 	- **2** or more: recurse to this many levels to get file information
 
-- search (5)
+- update (6)
+
+	sections: info (file info)
+
+- delete (7)
+
+	sections: path (string)
+
+- search (8)
 
 	Sections: search parameters (string)
 
-- advertise (6)
+- invalidate (9)
 	
-	Sections: action (integer), info (file info)
+	Sections: path (string)
 
-	Action can be delete (1), create (2), modify (3), local copy removed (4), invalidate (5)
+- replica (10)
 
-- disconnect (7)
+	Sections:
+
+	- action (integer), value is -1 (deleted replica) or 1 (new replica)
+	- path (string)
+
+- disconnect (11)
 	
 	Message contains no payload
 
-- ack (8)
+- ack (12)
 
 	Message contains no payload
 
-- file info (9)
+- file info (13)
 
 	Message sections: file count, **n** >= 0 (integer), **n** file info sections (file info)
 
-- error (10)
+- error (14)
 
 	Message sections: integer error number, string error message
 
@@ -304,29 +321,31 @@ User writes commands to the interface to access files. Each command is executed 
 4. server: receive directory server response
 	- already exists error is possible
 5. server: send **ok** **response** to client
+6. server: free the lock
 
 ###### delete directory
 1. client: send **delete** **command** message (file type=2)
-2. server: delete message to directory server
+2. server: send **action** (action type=**delete**) message to directory server
 	- lock error is possible
 	- doesn't exist error is possible
 3. server: send **ok** **response** to client
 
 ###### list directory contents
-1. client sends **command** message with **command number** 10
-2. file server aquires an **s** lock to the directory
-	- error message is sent to client and printed to user
-3. file server gets directory contents from directory server
-	- error message is sent to client and printed to user
-4. file server sends **response** message with **file info** list
-5. client receives and prints file list
+1. client: send **list** **command**
+2. server: aquire **s** lock to the directory
+	- lock error is possible
+3. server: send directory server **get info** **message** (**recursion level**=1)
+	- doesn't exist error is possible
+4. server: receive directory server response
+5. server: free the **s** lock
+6. server: send **file info** **response** to client
 
 ###### create file
 1. client: send **command** message with **command number** 1 and file type 1
 2. server: acquire **s** lock to containing directory
 3. server: create the file to directory (implicit **x** locking)
 4. server: send **response** **ok** to client
-5. now client has the file open
+5. client: mark file as open
 
 ###### open file
 1. client: send **open** **command** to the server
