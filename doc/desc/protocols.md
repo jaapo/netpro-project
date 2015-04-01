@@ -54,8 +54,9 @@ Error codes and explanations
 | 4    | command syntax error
 | 5    | file server unavailable
 | 6    | directory server unavailable
-| 7    | 
-| 8    | 
+| 7    | insufficient replicas
+| 8    | abort
+| 9    | unknown error
 #### File access protocol
 
 Clients and file servers use the file access protocol, FAP. FAP uses TCP. TCP port xxxxx is used for control messages and TCP port xxxxx2 for data.
@@ -90,7 +91,7 @@ Every section ends with a the *next section* field. Rest of section format depen
 *transaction_id* identifies a single client server interaction. Transactions are initiated by clients and server's reponse must contain the same *transaction_id*.
 
 ##### Message types
-Message type determines rest of the message contents. Possible message types are *handshake*, *handshake response*, *status*, *quit*, *command*, *ack*, *error* and *response*. Message type numbers are in parentheses in the headers.
+Message type determines rest of the message contents. Message types are *handshake*, *handshake response*, *status*, *quit*, *command*, *ack*, *error* and *response*. Message type numbers are in parentheses in the headers.
 
 ###### handshake (message type number: 1)
 Two string sections: hostname, username. The **client id** and **server id** fields are 0 in this message.
@@ -98,8 +99,8 @@ Two string sections: hostname, username. The **client id** and **server id** fie
 ###### quit (3)
 Message contains no payload data.
 
-###### status (4)
-Message contains no payload data.
+<!--###### status (4)
+Message contains no payload data.-->
 
 ###### command (5)
 Every command message contains a *command number* section. It is an integer section with command number.
@@ -207,13 +208,15 @@ Message sections and numbers:
 
 - handshake (1)
 
-	Sections: server name (string), server maximum capacity in bytes (integer), server current disk usage in bytes (integer)
+	Sections: server name (string), server maximum capacity in bytes (integer), server current disk usage in bytes (integer), server file count (integer)
 
 	File system ID is 0 in this message
 
 - handshake response (2)
 
-	Message contains no payload data
+	Sections: refresh (integer)
+
+	refresh is 0 or 1
 
 - lock (3)
 	
@@ -257,19 +260,27 @@ Message sections and numbers:
 	- action (integer), value is -1 (deleted replica) or 1 (new replica)
 	- path (string)
 
-- disconnect (11)
+- file replicas (11)
+
+	Sections: hostnames (arbitrary number of strings)
+
+- get file replicas (12)
+
+	Sections: path (string)
+
+- disconnect (13)
 	
 	Message contains no payload
 
-- ack (12)
+- ack (14)
 
 	Message contains no payload
 
-- file info (13)
+- file info (15)
 
 	Message sections: file count, **n** >= 0 (integer), **n** file info sections (file info)
 
-- error (14)
+- error (16)
 
 	Message sections: integer error number, string error message
 
@@ -282,7 +293,9 @@ FCTP is a binary protocol. Every message contain 64-bit *transaction id*, *from 
     +----------------------------------------------------------------+
     |                      Transaction ID                            |
     +----------------------------------------------------------------+
-    |                      Server ID                                 |
+    |                      Source Server ID                          |
+    +----------------------------------------------------------------+
+    |                      Destination server ID                     |
     +----------------------------------------------------------------+
     |                      File system ID                            |
     +----------------------------------------------------------------+
@@ -308,14 +321,14 @@ When client process starts it creates the FAP TCP connection to port xxxx1. Afte
 ##### Error handling
 If file server fails fullfilling a client request, it sends an **error** response to the client. This means that the current transaction is over and the operation failed. **error** message contains error number. Message contains also a string describing the error. File server must log errors. Client must show error's type and description to user.
 
-Possible errors are listed in the numbered list as sub-items.
+Possible errors are listed in sub-items in the message sequence lists below.
 
 ##### Commands
 User writes commands to the interface to access files. Each command is executed differently, most with a single message.
 
 ###### create directory
 1. client: send **create** **command** message (**command number**=1 and **file type**=2)
-3. server: send **create** **advertisement** to the directory server
+3. server: send **create** message to the directory server
 	- already exists error is possible
 	- directory doesn't exist is possible (for parent directory)
 4. server: receive directory server response
@@ -364,6 +377,7 @@ User writes commands to the interface to access files. Each command is executed 
 	- if user has closed the file and is not editing it anymore goto step 8
 	- otherwise done
 8. client: send **close** **command**
+9. server: send **update** message to directory server
 9. server: free file lock
 9. server: send **ok** **response** to client
 
@@ -376,6 +390,7 @@ User writes commands to the interface to access files. Each command is executed 
 ###### read file
 1. client: file must be open
 2. client: send **read** **command** to server
+3. server: get file
 3. server: reply with **data out** **response**
 4. server: send data to data connection
 5. client: receive data from data connection
@@ -383,6 +398,7 @@ User writes commands to the interface to access files. Each command is executed 
 
 ###### copy file
 1. client: send **copy** **command** to server
+2. server: get file
 3. server: send **create** message to directory server (implicit **x** lock)
 	- already exist error is possible
 4. server: copy contents locally
@@ -392,6 +408,7 @@ User writes commands to the interface to access files. Each command is executed 
 ###### search file
 1. client: send **find** **command** to server
 2. server: parse client command parameters
+	- syntax error possible
 3. server: send **search** message to directory server
 4. server: receive **file info** response from directory server
 5. server: send **file information** message to client
@@ -405,3 +422,113 @@ User writes commands to the interface to access files. Each command is executed 
 6. server: free client data structures
 
 #### DCP
+DCP is a request-response protocol. Message sequences of transactions are described in sections below. *transaction id*s stay same in one transaction.
+
+#### File server start
+1. file server: count stored files and the space they take
+1. file server: send **handshake** to directory server
+2. directory server: reply with **handshake response**
+	- if file server has files (file count in handshake is not 0), set refresh to 1
+	- otherwise set refresh to 0 and protocol is done
+4. file server: send **file info** message containing all server files
+5. directory server: compare timestamps of file server's files and directory server files
+6. directory server: send invalidate message for all obsolete files
+
+After this, file server may start serving clients.
+
+#### File server exit
+1. file server 1: send **disconnect** message
+2. directory server: send **ok** to file server 1
+3. directory server: remove file server 1 from replica lists
+4. directory server: remove other file server 1 data structures, free locks
+
+#### Error handling
+If a DCP request tries to access a non existent file, a *file not found* error is send back. An operation which would create another file to an already taken path yields *file already exists* error. *lock error* occurs when a lock is needed for file which is already incompatibly locked (see **locks** section below).
+
+#### Operations
+##### locks
+File server reserves locks for files sending **lock** messages. When a lock is requested, directory server checks if it can be given. Any file may have  multiple shared (**s**) locks at a time. An exclusive (**x**) lock forbids all other locks on an object. If a file server already has an **s** lock, an **x** lock request is an upgrade request and may be fullfilled if no other server holds a lock on the object.
+
+Locks are reserved implicitly on certain operations. File creation (**create** message) **x** locks a file. Short term locks are automatically handled on directory server to guarantee operation atomicity (e.g. **delete**).
+
+Locking sequence:
+1. file server 1: need to lock a file
+2. file server 1: send **lock** request to directory server
+3. directory server: create lock for file server 1 if possible
+3. directory server: send **ok** to file server 1
+	- or **error** if impossible lock
+4. file server 1: continue operations
+5. file server 1: send **lock** free message
+6. directory server: remove lock
+7. directory server: send **ok** to file server
+
+##### create
+1. file server 1: send **create** message
+2. directory server: create file entry to the directory
+3. directory server: add file server 1 to the list of file storers
+3. directory server: send **file info** back
+
+#### read
+1. file server 1: send **read** message to directory server
+2. directory server: find requested data, traverse recursively if necessary
+3. directory server: send **file info** message
+
+#### update
+1. file server 1: send **update** message to directory server
+2. directory server: check that file server 1 has an **x** lock on file
+3. directory server: assign a timestamp to the update, save it to directory
+4. directory server: send updated **file info** to file server 1
+5. directory server: send **invalidate** to all other servers storing the file
+
+#### delete
+1. file server 1: send **delete** message
+2. directory server: check that file server 1 can get an **x** lock on file
+3. directory server: send updated **ok** to file server 1
+4. directory server: send **invalidate** to all other servers storing the file
+
+#### invalidate
+1. directory server: send **invalidate** message to servers with replica
+2. directory server: remove servers from file's replica list
+3. file servers: remove local file
+4. file servers: send **ack** back
+
+#### search
+1. file server: send **search** message to directory server
+2. directory server: find files matching **search** string (wildcard expression)
+3. directory server: send file server **file info** of matched files
+
+#### replica 1
+1. file server 1: download a file from file serve 2
+2. file server 1: send **replica** (action=1) message to directory server
+
+#### replica -1
+1. file server 1: too much files, try to remove some
+2. file server 1: send **replica** (action=-1) message to directory server
+3. directory server: 
+	- if number of file replicas is greater than `min_replicas` configuration parameter, send **ok**
+	- else send **insufficient replicas** **error**
+4. file server 1: 
+	- remove local file, if **ok** received
+	- else find another file file to remove
+
+#### get replicas
+1. file server 1: client asks for file, no local replica
+2. file server 1: send **get replicas** message to directory server
+3. directory server: send **file replicas** message to file server 1
+4. file server 1: try to get from first server in list (file server 2)
+	- try next if server unavailable or other error
+	- if no server can serve, send **insufficient replicas** to client, done
+
+#### FCTP
+FCTP has only one operation, file transfer.
+
+##### File transfer
+1. file server 1: client requests a file, directory server tells that it can be found from file server 2
+2. file server 1: send **download** message to file server 2
+3. file server 2: send **ok** message to file server 1 with file contents
+	- if file can't be found send file not found **error** message
+4. file server 1: receive file
+	- if capacity is too close to maximum, find least recently used file, send **replica -1** message to directory
+	- if directory response is **ok**, delete file from disk
+	- otherwise, find next least recently used file that may be removed
+6. file server 1: continue

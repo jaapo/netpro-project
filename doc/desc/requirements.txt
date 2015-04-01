@@ -1,6 +1,6 @@
-[/] Introduction and Detailed description
-[/] Software Structure (Architecture)
-[ ] Software Operation Logic and Protocol Specification
+[x] Introduction and Detailed description
+[x] Software Structure (Architecture)
+[x] Software Operation Logic and Protocol Specification
 [x] Files
-[ ] Signal Handling
-[ ] User Interface
+[x] Signal Handling
+[x] User Interface

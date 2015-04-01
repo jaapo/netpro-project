@@ -36,6 +36,7 @@ Directory server has a single configuration file `/etc/dfs_dirserv.conf`. Altern
 
 Configuration parameters are
 - `data_location` - path to directory to store server data
+- `min_replicas` - minimum number of replicas of a file to allow
 
 #### Data files
 File system contents are saved in file called `fs` inside the data directory.  The file is written when server process exits. Server process can also do this periodically while running. This file contains a textual record of every file. Record fields are separated with a single space character.

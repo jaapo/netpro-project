@@ -57,12 +57,10 @@ Directory server detects servers with heavy load and instructs them to instruct 
 	- server tells client to use other server
 	- directory server's load balancing decision-->
 - **quit**
-	- client quits
-	- server releases all locks and data structures
-- **status query**
+<!--- **status query**
 	- both can send
 	- keepalive messages
-	- only when connection is otherwise idle
+	- only when connection is otherwise idle-->
 
 #### File server *A* --- File server *B*
 
@@ -77,9 +75,10 @@ Directory server detects servers with heavy load and instructs them to instruct 
 	- file server's client opens a file
 	- file server needs a lock
 	- directory may S-lock or X-lock the file
-- **status information**
+- **CRUD** operations (create, read, update, delete)
+<!--- **status information**
 	- file server sends information about it's load
 - **client redirect command**
 	- directory server load balance instruction
-	- tells file server to tell it's clients to use another server
+	- tells file server to tell it's clients to use another server-->
 
