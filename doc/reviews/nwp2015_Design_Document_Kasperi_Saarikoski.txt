@@ -1,0 +1,409 @@
+Give also the message format diagram (see the RFC example)
+
+In the text editor align the RHS. It is difficult to read
+If you are using emacs, Alt q will make th eright aligned.
+
+			
+            Design Document - OpenVPN cluster management
+
+
+
+    1. Introduction and Detailed Description of the Task
+
+OpenVPN is an open-source software application that runs in user-space and implements a Virtual Private Network (VPN). A VPN extends a private network across a public network so that a computer can, for example, tunnel all of it's Internet traffic through that VPN. While OpenVPN supports encryption and authentication, it multiplexes all created tunnels on a single TCP/UDP port. In this project, a middleware layer is implemented that works alongside with OpenVPN and adds some functionality related to the distributed management of multiple OpenVPN servers. One project specific goal is to minimize all but the most necessary dependencies with OpenVPN's source code.
+
+On a high level, this project involves the following entities: i) a coordinator server, ii) OpenVPN clients  and iii) OpenVPN servers. Covered functionality includes adding and removing OpenVPN users, querying traffic counts of individual users  across all OpenVPN server  instances and choosing a OpenVPN server for a user to establish a OpenVPN tunnel with. The project's software can  be described as middleware software that co-operates with OpenVPN, meanwhile the coordinator is implemented as a stand-alone software  whose roles depend on the executed functionality. The project's overall functionality is covered in more detail below.
+
+NOTE: This project does not cover any security aspects of such a system (like authentication, securing communications). The project only focuses on how to implement the given functionality, leaving security aspects as future work.
+
+    Communications: OpenVPN client  <-> Coordinator
+
+(1) Client retrieves a list of OpenVPN servers.
+
+    Client contacts the coordinator and retrieves a list of OpenVPN servers belonging to the cluster. As an existing OpenVPN user, the client can then choose one server and establish a OpenVPN tunnel with it. Client maintains his own configuration file which is given to the client in stage 2), and it modifies the configuration file's server address parameter accordingly. The used keys and certificates stay the same regardless of which server the client decides to connect to.
+
+    Described as message #6 below.
+
+(2) Client adds itself to the list of OpenVPN users.
+
+    Client contacts the coordinator and asks to be added to the list of OpenVPN users. The coordinator generates a unique ID (string), a client certificate, a secret client key and sends them to the client along with the server certificate and an OpenVPN configuration file. The coordinator adds the client to it's list OpenVPN users, and keeps the generated files for the purpose of later serving them to OpenVPN servers. After this, the coordinator contacts all OpenVPN servers and tells them to refresh their list of OpenVPN users. (NUMBER)
+
+    If a OpenVPN server is down during the new client certificate/configuration distribution, it will synchronise it's state with the coordinator as the first thing when the OpenVPN server comes back online. 
+
+    NOTE: this communication is not secure.
+
+    Described as message #1 below.
+
+(3) Client removes itself from the list of VPN users.
+
+    An existing OpenVPN user wants to delete itself from the list of VPN users. It contacts the coordinator and asks for the deletion, the coordinator deletes the client's information and asks all OpenVPN servers to refresh their list of OpenVPN users.
+
+    If a OpenVPN server is down during this, it will synchronise it's state with the coordinator as the first thing when the OpenVPN server comes back online. 
+
+    NOTE: proper authentication is not implemented in this project.
+
+    Described as message #2 below.
+
+
+
+    Communications: Coordinator <-> VPN servers
+
+(4) Querying user's traffic count.
+
+    A OpenVPN client, OpenVPN server or the coordinator can query a OpenVPN server for a user's total traffic count across all OpenVPN servers.  When a signaling connection to a OpenVPN server is made, the unique client ID is sent to the server with the purpose of querying  it's traffic count. That OpenVPN server then contacts all other OpenVPN servers (from the list maintained by the coordinator), and  asks them for that user's traffic count. It finally sums them up - including it's own traffic count for the user - and replies the entity that queried for it.
+
+    OpenVPN servers maintain per-user traffic count information along with other information associated with each user. When a OpenVPN user is connected to a OpenVPN server, the server incrementally updates that user's traffic count with some time intervals.
+    
+    NOTE: If a OpenVPN server is down during traffic polling, that server's traffic count will be missed. This problem could be alleviated with caching, but it is not implemented in this project.
+
+    Described as messages #3 and #4 below.
+
+(5) Update user and server list.
+
+    An OpenVPN server can ask the coordinator for the newest list of OpenVPN servers and users.
+
+    Described as message #5, #6 and #7 below.
+
+
+
+    Communications: OpenVPN server  <-> OpenVPN servers
+ 
+(6) Traffic polling. 
+    
+    See section (4) above.
+
+
+    Communications: OpenVPN client  <-> OpenVPN servers
+
+(7) Traffic polling.
+    
+    See section (4) above.
+
+(8) Update user and server list.
+
+    See section (5) above.
+
+
+
+    2. Software Structure (Architecture)
+
++-----------------------------------------+
+| Client <<device>>                       |
+|                                         |
+| +-----------------+ +-----------------+ |
+| | OpenvVPN client | | Client          | |
+| |                 | | middleware      | | (Client software exec()'s the OpenVPN software)
+| |                 | |                 | |
+| |                 | |                 | |
+| |                 | |                 | |
+| +-------*---------+ +---------------*-+ |
++---------|---------------------------|---+
+          |                           |
+          |                           |
+          |                           |      +---------------------+
+          |                           |     | Coordinator         |
+          |                           |     | <<device>>          |
+          |                           |     | +-----------------+ |
+          |                           |     | | Coordinator     | |
+          |                           +-------* software,       | | 
+          |                                 | | daemon          | |
+          |                                 | |                 | |   
+          |                                 | |                 | |
+          |                                 | +-*---------------+ |
+          +-------+                         +---|-----------------+
+                  |                             |
++-----------------|---+---------------------+   |   +-----------+
+| OpenVPN server  |   | Server middleware   |   |   | Another   |
+| <<device>>      |   |                     |   |   | server    |
+| +---------------*-+ | +-----------------+ |   |   | instance  |
+| | OpenvVPN server | | | Server          | |   |   | ....      |
+| |                 | | | middleware,     *-----+   | Details   |
+| |                 | | | daemon          | |       | omitted   |
+| |                 | | |                 *---------*           |
+| |                 | | |                 | |       |           |
+| +-----------------+ | +-----------------+ |       |           |
++---------------------+---------------------+       +-----------+
+
+(A more detailer version can be found in http://www.cs.helsinki.fi/u/kasperis/nwp/architecture.png)
+
+Coordinator is a process whose main purpose is to maintain OpenVPN user and server lists. Upon them being updated, it also functions as a client contacting OpenVPN servers and telling them to refresh their OpenVPN user and server lists to the most up-to-date versions. Coordinator serves OpenVPN user and server lists in an iterative manner, handling one such request at a time. When clients are added or removed, the coordinator forks a new process to deal with that longer-lasting operation. Also, when the coordinator notifies OpenVPN servers of updated server/user lists, it forks a new process which will iteratively contact each OpenVPN server and tell them to do so. The coordinator maintains server/user lists in an in-memory data structure and keeps synchronised copies of them on disk. The lists on the disk are in JSON format, while the in-memory data structures are implemented as linked lists.
+
+OpenVPN server-side middleware is responsible for updating OpenVPN server/user lists, responding to traffic queries and related to that, querying other OpenVPN servers for the traffic counts of users. The main functionality is implemented in a process that listens for incoming requests. When new server/user lists are available, the software forks a new process to fetch the most up-to-date lists from the coordinator. When a traffic count request comes in, the software forks a new process which will contact each OpenVPN server iteratively and sum up the traffic counts, which it will then forward back to it's original client. Server/user lists are maintained in a similar fashion to the coordinator. Every OpenVPN server maintains user traffic counts in files on disk that are updated and served when needed.
+
+OpenVPN client-side middleware is a client software with functionality covering adding/removing a user profile, querying the user's traffic  count and establishing a OpenVPN connection with a server. It is implemented as a one-process software that acts as a client, making requests either to the coordinator or OpenVPN servers. It can also launch an OpenVPN tunnel with the user's configuration file and chosen OpenVPN server.
+
+Coordinator and OpenVPN middleware server software are implemented as daemons, while the OpenVPN middleware client is implemented as a CLI software that communicates with the coordinator and execs an OpenVPN client with a specific kind of a configuration.
+
+NOTE: future work would include sharding of users to different servers, in case the amount of user grows very large. It would be infeasible to always send out the whole user lists. On the other, users lists could be served incrementally.
+
+NOTE: generated unique client id is also used as the client certificate's Common Name (CN), with which it can be uniquely identified from the log and status files generated by OpenVPN.
+
+
+
+    3. Software Operation Logic and Protocol Specification
+
+
+
+All messages exchanged between coordinators, middleware servers and middleware clients are in UTF-8 encoded JSON format. All messages are transmitted over TCP/IP connections. It is straightforward to see if a piece of message is complete because a valid JSON always requires matching amount of brackets ('{}') for objects and square brackets ('[]') for arrays. The library json-c (github.com/json-c/json-c) will be used to decode/encode JSON messages.
+
+Each TCP/IP connection in the system has two dynamic roles: the client makes a request, while the server serves the request. After that, the connection is closed.
+
+NOTE: to promote portability and testability, all protocol commands are sent as JSON.
+NOTE: a client-server connection can be deemed as finished when a valid request JSON is replied with a valid reply JSON.
+
+Message #1: client requests to be added as a user. Here, the client asks the server to add itself to the list OpenVPN users.
+
+    Client to coordinator: 
+
+    {
+        "command"   :   "add-user",
+        "email"     :   "users@email"
+    }
+
+    Coordinator to client on success:
+
+    {
+        "success"     :   "1",
+        "id"          :   "unique-user-id",
+        "client.conf" :   "client configuration file",
+        "ca.crt"      :   "X509 server certificate in PEM format",
+        "client.crt"  :   "X509 client certificate in PEM format",
+        "client.key"  :   "client's secret key encoded as ASCII PEM"
+    }
+
+    Or on failure:
+
+    {
+        "success"     :    "0"
+    }
+
+    Connection is closed.
+
+Message #2: client requests to be deleted. Here, the client asks the server to delete itself from the list of OpenVPN users.
+
+    Client to coordinator:
+
+    {
+        "command"       :   "remove-user",
+        "id"            :   "unique-user-id"
+    }
+
+    Coordinator to client on success:
+
+    {
+        "success"       :   "1"
+    }
+
+    Or on failure:
+
+    {
+        "success"       :    "0"
+    }
+
+    Connection is closed.
+
+Message #3: query total traffic count of a user. Here, an entity wants to know the total amount of traffic transferred by a user.
+
+    Client / coordinator / OpenVPN server to OpenVPN server:
+
+    {
+        "command"       :   "query-traffic",
+        "forward-query" :   "1",
+        "id"            :   "unique-user-id"
+    }
+
+    OpenVPN server replies on success after contact other OpenVPN servers:
+
+    {
+        "success"       :   "1",
+        "traffic-count" :   "traffic count in bytes.."
+    }
+
+    OpenVPN server replies on failure:
+
+    {
+        "success"       :   "0"
+    }
+
+    Connection is closed.
+
+Message #4: query server-specific traffic count of a user. Here, an entity wants to know the server-specific amount of traffic transferred by a user.
+
+    Client / coordinator / OpenVPN server to OpenVPN server:
+
+    {
+        "command"       :   "query-traffic",
+        "forward-query" :   "0",
+        "id"            :   "unique-user-id"
+    }
+
+    OpenVPN server replies on success:
+
+    {
+        "success"       :   "1",
+        "traffic-count" :   "traffic count in bytes.."
+    }
+
+    OpenVPN server replies on failure:
+
+    {
+        "success"       :   "0"
+    }
+
+    Connection is closed.
+
+Message #5: notify OpenVPN server of updated user/server lists. Here, the coordinator tells OpenVPN servers to fetch the latest server/user lists.
+
+    Coordinator to OpenVPN server:
+
+    {
+        "command"       :   "update-list"
+    }
+
+    OpenVPN server replies on success:
+
+    {
+        "success"       :   "1",
+    }
+
+    OpenVPN server replies on failure:
+
+    {
+        "success"       :   "0"
+    }
+
+    Connection is closed.
+
+Message #6: Client or OpenVPN server fetches server list from coordinator:
+
+    OpenVPN server to coordinator:
+
+    {
+        "command"       :   "fetch-server-list"
+    }
+
+    Coordinator replies to OpenVPN server or client on success:
+
+    {
+        "success"       :   "1",
+        "server-list"   :   "Base64 encoded server list (json)",
+    }
+
+    Coordinator replies to OpenVPN server or client on failure:
+
+    {
+        "success"       :   "0"
+    }
+
+Message #6: OpenVPN server fetches user list from coordinator:
+
+    OpenVPN server to coordinator:
+
+    {
+        "command"       :   "fetch-user-list"
+    }
+
+    Coordinator replies to OpenVPN server on success:
+
+    {
+        "success"       :   "1",
+        "user-list"     :   "Base64 encoded user list (json)",
+    }
+
+    Coordinator replies to OpenVPN server on failure:
+
+    {
+        "success"       :   "0"
+    }
+
+    Connection is closed.
+
+
+
+    4. Files
+
+    4.1 Log files
+
+The OpenVPN client middleware, server middleware and the coordinator all record their actions to log files named "cluster.log". The format is simple: a timestamp followed by a message.
+
+01.01.1970 13:30 Log Message..
+
+    4.2 Configuration / data files
+
+The OpenVPN client software maintains a user profile, including an OpenVPN configuration file, server/client certificates and client secret key.
+
+Coordinator/servers maintains user / server lists as JSON files. Client certificates are also maintained in the proper OpenVPN server directories. The JSON formats are as follows:
+
+servers.json:
+
+{
+    "servers": [ 
+        {
+            "address"   :   "address of server one",
+            "port"      :   "port of server one"
+        },
+        {
+            "address"   :   "address of server two",
+            "port"      :   "port of server two"
+        },        
+        {
+            "address"   :   "address of server three",
+            "port"      :   "port of server three"
+        },        
+        ...
+    ]
+}
+
+users.json:
+
+{
+    "users": {
+        "unique-user-id": {
+            "client.conf"   : "client configuration file",
+            "ca.crt"        : "X509 server certificate in PEM format",
+            "client.crt"    : "X509 client certificate in PEM format",
+            "client.key"    : "client's secret key encoded as ASCII PEM"
+        },
+        ...
+    }
+}
+
+
+
+    5. Signal Handling
+
+
+
+Coordinator and the OpenVPN server software handles child termination signal to ensure that no zombie processes are left. Coordinator, OpenVPN server and OpenVPN client handles SIGNINT to terminate after freeing up resources. The coordinator refreshes it's OpenVPN server and user lists when it receives the SIGHUP signal.
+
+
+
+    6. User Interface
+
+
+
+The OpenVPN server middleware and coordinator software are run as stand-alone software with no additional arguments.
+
+The OpenVPN client middleware supports the following commands:
+
+client-middleware-binary status
+
+    prints out the current OpenVPN user profile (if any).
+
+client-middleware-binary useradd email@address
+
+    receives the new client information from coordinator and prints out the generated unique user id.
+    stores the new user profile and files.
+
+client-middleware-binary userdel
+
+    contacts the coordinator to delete the current user (if a profile exists). prints out the outcome.
+
+client-middleware-binary list servers
+
+    prints the list of available OpenVPN servers served by the coordinator.    
+
+client-middleware-binary connect server
+
+    modifies the configuration file to reflect the chosen OpenVPN server. launches OpenVPN client software
+    to establish a OpenVPN tunnel. needs to be run with root privileges.

@@ -1,0 +1,12 @@
+No good description about why the central server accepts a node or not.
+Why is the range only by first letter, doesn't really scale eh?
+Data file format is inflexible, does require full rewrite on updates and scan on reads :o
+Error handling, what happens if read EOF, socket closed, invalid response, etc
+Where is the data read from?
+"Will keep polling the user for commands"
+command line commands are ambiguos, what about spaces in terms or descriptions
+what happens after a server retrieves information of another server node. protocol description isn't adequate.
+"operations ... are protected by a file lock" how? what file is locked
+logging
+data file descriptions (names and locations)
+TCP connections. are they kept open all the time or what.

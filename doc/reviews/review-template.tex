@@ -1,0 +1,42 @@
+% Use this template to write the review of the design document.
+%The name of this file should be nwp2015_review_yourname_projectname.tex
+% Edit this file using any text editior and run pdflatex on the file. 
+% Upload  the .pdf file against your name in the reviewer field in the wiki page 
+\documentclass{article}
+\begin{document}
+
+\title{Review of the Project $<title\, of\, the \, project>$ by $<author's\,name>$ }
+\author{Your name} 
+\maketitle
+\section{Short summary of the project}
+Distributed storage for terms and their descrptions. Data is distributed to multiple servers, all of which have same ability to provide service to users. Architecture is three-tier. A centralized server stores information about term server's addresses and their term ranges.
+Every client communicates with their designated term server. Term server transparently finds out the term description from other servers, if server's own range doesn't contain the term.
+Term servers query the centralized server to find other term servers to fulfill client requests.
+\section{Numerical scores (1-5)}
+
+\begin{itemize}
+\item Readability : 4
+\item Organization : 5
+\item Overall score : 4
+\end{itemize}
+
+\noindent The best score is 5 and the least is 1.\\
+Readability: How easy to understand the document? \\
+Document was written clearly, but some things could have been clarified with diagrams or presentation techniques like lists.
+
+Organization: Does the document have relevant material in all the 6 sections needed in  the Design document.\\
+nope :D
+
+\section{Your Comments on the project}
+What do you think of this project?\\
+Comments on the structure on the project.\\
+Do you have any suggestions for improving the structure ? \\ 
+
+
+\section{Questions or Discussion points}
+
+
+
+
+\end{document}
+
