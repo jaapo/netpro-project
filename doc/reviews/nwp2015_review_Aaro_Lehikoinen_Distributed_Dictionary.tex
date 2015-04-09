@@ -5,31 +5,47 @@
 \documentclass{article}
 \begin{document}
 
-\title{Review of the Project Distributed Dictionary by Iiro Torppa}
-\author{Aaro Lehikoinen} 
+\title{Review of the Project $<title\, of\, the \, project>$ by $<author's\,name>$ }
+\author{Your name} 
 \maketitle
 \section{Short summary of the project}
-
+Distributed storage for terms and their descrptions. Data is distributed to multiple servers, all of which have same ability to provide service to users. Architecture is three-tier. A centralized server stores information about term server's addresses and their term ranges.
+Every client communicates with their designated term server. Term server transparently finds out the term description from other servers, if server's own range doesn't contain the term.
+Term servers query the centralized server to find other term servers to fulfill client requests.
 \section{Numerical scores (1-5)}
 
-
 \begin{itemize}
-\item Readability : 
-\item Organization : 
-\item Overall score : 
+\item Readability : 4
+\item Organization : 5
+\item Overall score : 4
 \end{itemize}
 
 \noindent The best score is 5 and the least is 1.\\
 Readability: How easy to understand the document? \\
-Organization: Does the document have relevant material in all the 6 sections needed in  the Design document.\\
+Document was written clearly, but some things could have been clarified with diagrams or presentation techniques like lists.
 
+Organization: Does the document have relevant material in all the 6 sections needed in  the Design document.\\
+%Design description is clear and 
+Software component descriptions could contain more details about the data structures and how they are maintained. Document's description is very simple and doesn't describe any operations on data structures, or how the defined structures (\bf{term\_pkt} and \bf{node\_info}) are stored and accessed in process memory.
+
+Protocol specification could contain an example of a message or diagram of a message format in addition to the textual description. Message format does seem to limit the description to a single line string, but this is not mentioned elsewhere. Protocol is simple and contains few different messages which is good as it makes reading the design document easy. Some diagram or other technique could have been used to describe component interactions more clearly.
+
+Names and locations of files aren't specified. Data file operations aren't described. Is the file updated and read every time new command is received, or is the in-memory data structured written to the file after process terminates and read from disk to memory at process startup?
+
+User interface of other processes is not described. How are they started and stopped, do they take some command line arguments.
 \section{Your Comments on the project}
 What do you think of this project?\\
-Comments on the structure on the project.\\
-Do you have any suggestions for improving the structure ? \\ 
+Project and it's design is good and simple.
 
+Comments on the structure on the project.\\
+Project structure is quite simple. There are only two different message types. Special values are reserved for implicating errors, though using separate messages would enable more descriptive error messages and error handling. 
+
+Do you have any suggestions for improving the structure ? \\
+Protocol
 
 \section{Questions or Discussion points}
+
+
 
 
 \end{document}
