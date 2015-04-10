@@ -532,3 +532,5 @@ FCTP has only one operation, file transfer.
 	- if directory response is **ok**, delete file from disk
 	- otherwise, find next least recently used file that may be removed
 6. file server 1: continue
+
+

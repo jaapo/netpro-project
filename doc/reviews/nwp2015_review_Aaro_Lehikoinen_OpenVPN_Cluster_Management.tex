@@ -1,0 +1,38 @@
+% Use this template to write the review of the design document.
+%The name of this file should be nwp2015_review_yourname_projectname.tex
+% Edit this file using any text editior and run pdflatex on the file. 
+% Upload  the .pdf file against your name in the reviewer field in the wiki page 
+\documentclass{article}
+\begin{document}
+
+\title{Review of the Project OpenVPN cluster management by Kasperi Saarikoski }
+\author{Aaro Lehikoinen} 
+\maketitle
+\section{Short summary of the project}
+Middleware for OpenVPN cluster management. Software manages OpenVPN client's connection establishment. A coordinator server communicates with OpenVPN clients and OpenVPN servers. Coordinator's task is to monitor clients and provide them configuration for VPN connection establishment, and to inform OpenVPN servers about new users. Client software starts the OpenVPN client after registering with the coordinator. Server software gets list of users and their keys from the coordinator and applies this information to OpenVPN server software so that registered clients can be authenticated.
+
+\section{Numerical scores (1-5)}
+
+
+\begin{itemize}
+\item Readability : 5
+\item Organization : 5
+\item Overall score : 5
+\end{itemize}
+
+\noindent The best score is 5 and the least is 1.\\
+Readability: How easy to understand the document? \\
+Organization: Does the document have relevant material in all the 6 sections needed in  the Design document.\\
+
+\section{Your Comments on the project}
+Project is practical and well defined. Using JSON messages clarifies the description a lot.Protocol description is clear and comprehensive. Additional notes also answer many questions.
+
+Quoted strings in message descriptions are somewhat confusing. For example in Message \#1 response it says \emph{"client.crt" : "X509 client certificate in PEM format"}, where it seems that the actual string content is \emph{"X509 ..."}, but it probably is contents of client certificate. Also with messages \#6 (both) the response contains \emph{"server-list"} field which contains \emph{"Base64 encoded server list (json)"}. When reading the specification for the first time, it was unclear what is this. It is not explicitly expressed, but could be assumed it contains contents of \emph{servers.json} file.
+
+Components' reaction to connection errors aren't specified. For example machine crashes could cause premature TCP connection close. 
+
+\section{Questions or Discussion points}
+What is the traffic querying used? Could there be also some load balancing features? Why are client's private keys sent to servers? How are the json-files handled, could it be done more efficiently?
+
+\end{document}
+

@@ -1,4 +1,3 @@
-<a id="files"></a>
 Files
 -----
 
