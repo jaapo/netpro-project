@@ -7,6 +7,8 @@ There are three protocols. One for client-server communication, second for commu
 ### Protocol messages
 All three protocols are similar in message format, but each of them have messages for their own purposes. All protocol messages contain headers including transaction id, ids of communicating parties and message type field, and then payload data split into sections.
 
+ID fields take 64-bits, *message type* and *section number* are 16-bit unsigned integer
+
 **General message format**
 
     +----------------------------------------------------------------+
@@ -71,7 +73,7 @@ When client exits, it closes the connection by sending a **quit** message to the
 
 All messages have a common message format. Messages have headers and sections. Message header contains *transaction_id*, *client id*, *server id*, *file system id*, *message type* and *next section* fields.
 
-All identifiers are 64 bits long. Command number takes 16 bits. *next section* field value is 16 bits.
+All identifiers are 64 bits long. *message type* takes 16 bits. *next section* field value is 16 bits.
 
 Every section ends with a the *next section* field. Rest of section format depends on the section type. A message may contain 0 to 127 sections.
 

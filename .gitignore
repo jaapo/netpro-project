@@ -1,3 +1,4 @@
 .*.swp
 doc/**/*.pdf
 doc/**/*.html
+src/bin/**
