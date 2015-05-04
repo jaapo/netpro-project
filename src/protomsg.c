@@ -99,19 +99,13 @@ int readval(const char *buf, int len, char **ptr, int readlen, void *dst) {
 
 struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol protocol) {
 	char *ptr;
-	uint64_t tmpuint64;
-	uint32_t tmpuint32;
-	uint16_t tmpuint16;
-	uint8_t tmpuint8;
-	int32_t tmpint32;
 	ptr = buffer;
 
 	struct fsmsg *msg;
-	fsmsg_create(&msg, protocol);
+	msg = fsmsg_create(protocol);
 
 	//read ids, transaction id is first
-	TRY(readval(buffer, len, &ptr, sizeof(msg->tid), &tmpuint64));
-	tmpuint64 = ntohll(tmpuint64);
+	TRY(readval(buffer, len, &ptr, sizeof(msg->tid), &msg->tid));
 
 	int idcount;
 	switch (protocol) {
@@ -126,23 +120,19 @@ struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol proto
 
 	msg->ids = malloc((idcount+1)*sizeof(uint64_t));
 	for (int i=0;i<idcount;i++) {
-		TRY(readval(buffer, len, &ptr, sizeof(msg->tid), &tmpuint64));
-		tmpuint64 = ntohll(tmpuint64);
-		msg->ids[i] = tmpuint64;
+		TRY(readval(buffer, len, &ptr, sizeof(msg->tid), &msg->ids[i]));
 	}
 	
 	//message type
-	TRY(readval(buffer, len, &ptr, sizeof(msg->msg_type), &tmpuint16));
-	tmpuint16 = ntohs(tmpuint16);
+	TRY(readval(buffer, len, &ptr, sizeof(msg->msg_type), &msg->msg_type));
 	
 	//sections
 	uint16_t sectype;
 	int sectioncount;
 	struct msg_section *s;
 	while(1) {
-		TRY(readval(buffer, len, &ptr, sizeof(tmpuint16), &tmpuint16));
-		sectype = (enum section_type) ntohs(tmpuint16);
-		if (sectype == nonext) break;
+		TRY(readval(buffer, len, &ptr, sizeof(sectype), &sectype));
+		if (ntohs(sectype) == nonext) break;
 
 		sectioncount++;
 		msg->sections = realloc(msg->sections, (sectioncount+1)*sizeof(struct msg_section*));
@@ -152,16 +142,14 @@ struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol proto
 
 		s->type = sectype;
 
-		switch (sectype) {
+		switch ((enum section_type) ntohs(sectype)) {
 			struct fileinfo_sect *fi;
 			case integer:
-				TRY(readval(buffer, len, &ptr, sizeof(tmpint32), &tmpint32));
-				s->data.integer = ntohl(tmpint32);
+				TRY(readval(buffer, len, &ptr, sizeof(s->data.integer), &s->data.integer));
 				break;
 			case string:
 				//read length
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint32), &tmpuint32));
-				s->data.string.length = ntohl(tmpuint32);
+				TRY(readval(buffer, len, &ptr, sizeof(s->data.string.length), &s->data.string.length));
 
 				//read data
 				s->data.string.data = malloc(s->data.string.length);
@@ -169,8 +157,7 @@ struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol proto
 				break;
 			case binary:
 				//read length
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint32), &tmpuint32));
-				s->data.binary.length = ntohl(tmpuint32);
+				TRY(readval(buffer, len, &ptr, sizeof(s->data.binary.length), &s->data.binary.length));
 
 				//read data
 				s->data.binary.data = malloc(s->data.binary.length);
@@ -179,32 +166,21 @@ struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol proto
 			case fileinfo:
 				fi = &s->data.fileinfo;
 				//file type byte
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint8), &tmpuint8));
-				fi->type = tmpuint8;
+				TRY(readval(buffer, len, &ptr, sizeof(fi->type), &fi->type));
 
-				//path len
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint32), &tmpuint32));
-				fi->pathlen = ntohl(tmpuint32);
-				///path
+				//path
+				TRY(readval(buffer, len, &ptr, sizeof(fi->pathlen), &fi->pathlen));
 				fi->path = malloc(fi->pathlen);
 				TRY(readval(buffer, len, &ptr, fi->pathlen, fi->path));
 
-				//usernam len
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint32), &tmpuint32));
-				fi->usernamelen = ntohl(tmpuint32);
-				///username
+				//usernam
+				TRY(readval(buffer, len, &ptr, sizeof(fi->usernamelen), &fi->usernamelen));
 				fi->username = malloc(fi->usernamelen);
 				TRY(readval(buffer, len, &ptr, fi->usernamelen, fi->username));
 
-				//modified
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint32), &tmpuint32));
-				fi->modified = ntohl(tmpuint32);
-				//size
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint32), &tmpuint32));
-				fi->size = ntohl(tmpuint32);
-				//replica count
-				TRY(readval(buffer, len, &ptr, sizeof(tmpuint32), &tmpuint32));
-				fi->replicas = ntohl(tmpuint32);
+				TRY(readval(buffer, len, &ptr, sizeof(fi->modified), &fi->modified));
+				TRY(readval(buffer, len, &ptr, sizeof(fi->size), &fi->size));
+				TRY(readval(buffer, len, &ptr, sizeof(fi->replicas), &fi->replicas));
 
 				break;
 			default:
@@ -220,8 +196,8 @@ fail:
 
 #undef TRY
 
-void fsmsg_create(struct fsmsg **msg, enum fsmsg_protocol protocol) {
-	*msg = malloc(sizeof(struct fsmsg));
+struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol) {
+	struct fsmsg *msg = malloc(sizeof(struct fsmsg));
 	
 	//number of ids depends on protocol
 	int idcount;
@@ -235,15 +211,70 @@ void fsmsg_create(struct fsmsg **msg, enum fsmsg_protocol protocol) {
 			break;
 	}
 
-	(*msg)->ids = calloc(idcount+1, sizeof(uint64_t));
-	(*msg)->msg_type = 0;
+	msg->ids = calloc(idcount+1, sizeof(uint64_t));
+	msg->msg_type = 0;
 	//list of one pointer (NULL)
-	(*msg)->sections = malloc(sizeof(struct msg_section *));
-	(*msg)->sections[0] = NULL;
+	msg->sections = malloc(sizeof(struct msg_section *));
+	msg->sections[0] = NULL;
+
+	return msg;
 }
 
 
-int fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data data);
+void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data data) {
+	int sectioncount;
+
+	while (msg->sections[sectioncount++]);
+
+	msg->sections = realloc(msg->sections, sizeof(msg->sections[0])*sectioncount+1);
+	msg->sections[sectioncount] = NULL;
+	msg->sections[sectioncount-1] = malloc(sizeof(struct msg_section));
+
+	struct msg_section *sec = msg->sections[sectioncount-1];
+	sec->type = htons(type);
+
+	switch (type) {
+		struct fileinfo_sect *fi;
+		case integer:
+			sec->data.integer = htonl(data.integer);
+			break;
+		case string:
+			sec->data.string.length = htonl(data.string.length);
+			sec->data.string.data = malloc(data.string.length);
+			memcpy(sec->data.string.data, data.string.data, data.string.length);
+			break;
+		case binary:
+			sec->data.binary.length = htonl(data.binary.length);
+			sec->data.binary.data = malloc(data.binary.length);
+			memcpy(sec->data.binary.data, data.binary.data, data.binary.length);
+			break;
+		case fileinfo:
+			fi = &sec->data.fileinfo;
+			//file type byte
+			fi->type = data.fileinfo.type;
+
+			//path len
+			fi->pathlen = htonl(data.fileinfo.pathlen);
+			///path
+			fi->path = malloc(fi->pathlen);
+			memcpy(fi->path, data.fileinfo.path, fi->pathlen);
+
+			//usernam len
+			fi->usernamelen = ntohl(data.fileinfo.usernamelen);
+			///username
+			fi->username = malloc(fi->usernamelen);
+			memcpy(fi->username, data.fileinfo.username, fi->usernamelen);
+
+			//modified
+			fi->modified = ntohl(data.fileinfo.modified);
+			//size
+			fi->size = ntohl(data.fileinfo.size);
+			//replica count
+			fi->replicas = ntohl(data.fileinfo.replicas);
+		break;
+	}
+}
+
 void fsmsg_free(struct fsmsg *msg) {
 	if (!msg) return;
 	FREEIF(msg->ids);

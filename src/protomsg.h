@@ -52,8 +52,8 @@ struct fsmsg {
 
 int fsmsg_to_buffer(struct fsmsg *msg, char **buffer);
 struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol protocol);
-void fsmsg_create(struct fsmsg **msg, enum fsmsg_protocol protocol);
-int fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data data);
+struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol);
+void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data data);
 void fsmsg_free(struct fsmsg *msg);
 
 uint64_t htonll(uint64_t host64);
