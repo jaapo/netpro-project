@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #include "util.h"
 
@@ -20,6 +21,32 @@ int syscallerr(int ret, char *fmtstr, ...) {
 		exit(1);
 	}
 	return ret;
+}
+
+FILE* logopen(const char *logpath) {
+	FILE *f;
+	f = fopen(logpath, "a");
+	if (f==NULL) {
+		syscallerr(-1 , "error opening log file %s", logpath);
+	}
+	return f;
+}
+
+void logwrite(FILE *logfile, char *fmtstr, ...) {
+	int ret;
+	va_list ap;
+	va_start(ap, fmtstr);
+
+	char logtime[128];
+	time_t t = time(NULL);
+	ret = strftime(logtime, 128, "%F %T %z", localtime(&t));
+	if (ret<0) fprintf(stderr, "logging error!\n");
+	
+	ret = fputs(logtime, logfile);
+	if (ret <= 0) fprintf(stderr, "logging error!\n");
+
+	ret = vfprintf(logfile, fmtstr, ap);
+	if (ret<0) fprintf(stderr, "logging error!\n");
 }
 
 int readline(char *buffer, int fp, int maxline) {
