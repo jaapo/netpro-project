@@ -65,6 +65,7 @@ struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol);
 void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *data);
 void fsmsg_free(struct fsmsg *msg);
 
+int bufferadd(char **buffer, int *buflen, char **ptr, const void *data, int datalen);
 uint64_t htonll(uint64_t host64);
 uint64_t ntohll(uint64_t net64);
 

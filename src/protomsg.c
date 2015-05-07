@@ -3,7 +3,7 @@
 
 #define FREEIF(x) do{if(x)free(x);}while(0)
 
-void bufferadd(char **buffer, int *buflen, char **ptr, const void *data, int datalen) {
+int bufferadd(char **buffer, int *buflen, char **ptr, const void *data, int datalen) {
 	int curlen = *ptr-*buffer;
 
 	if (curlen+datalen > *buflen) {
@@ -14,13 +14,16 @@ void bufferadd(char **buffer, int *buflen, char **ptr, const void *data, int dat
 
 	memcpy(*ptr, data, datalen);
 	*ptr += datalen;
+
+	return datalen;
 }
 
 int fsmsg_to_buffer(struct fsmsg *msg, char **buffer) {
 	char *buf, *data;
-	int len = 1024;
+	int bufsize = 1024;
+	int len = 0;
 
-	buf = malloc(len);
+	buf = malloc(bufsize);
 	data = buf;
 
 	uint64_t tmpuint64;
@@ -31,16 +34,16 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer) {
 
 	//transaction id
 	tmpuint64 = htonll(msg->tid);
-	bufferadd(&buf, &len, &data, (void *)&tmpuint64, sizeof(tmpuint64));
+	len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint64, sizeof(tmpuint64));
 	
 	//other ids
 	for (int i=0;(tmpuint64 = msg->ids[i]);i++) {
-		bufferadd(&buf, &len, &data, (void *)&tmpuint64, sizeof(tmpuint64));
+		len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint64, sizeof(tmpuint64));
 	}
 
 	//message type
 	tmpuint16 = htons(msg->msg_type);
-	bufferadd(&buf, &len, &data, (void *)&tmpuint16, sizeof(tmpuint16));
+	len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint16, sizeof(tmpuint16));
 	
 	//sections
 	struct msg_section *section;
@@ -48,46 +51,47 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer) {
 		switch ((enum section_type) section->type) {
 			case integer:
 				tmpint32 = htonl(section->data.integer);
-				bufferadd(&buf, &len, &data, (void *)&tmpint32, sizeof(tmpint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpint32, sizeof(tmpint32));
 				break;
 			case string:
 				tmpuint32 = htonl(section->data.string.length);
-				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
-				bufferadd(&buf, &len, &data, (void *)section->data.string.data, section->data.string.length);
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)section->data.string.data, section->data.string.length);
 				break;
 			case binary:
 				tmpuint32 = htonl(section->data.binary.length);
-				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
-				bufferadd(&buf, &len, &data, (void *)section->data.binary.data, section->data.binary.length);
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)section->data.binary.data, section->data.binary.length);
 				break;
 			case fileinfo:
 				tmpuint8 = section->data.fileinfo.type;
-				bufferadd(&buf, &len, &data, (void *)&tmpuint8, sizeof(tmpuint8));
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint8, sizeof(tmpuint8));
 				
 				tmpuint32 = htonl(section->data.fileinfo.pathlen);
-				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
-				bufferadd(&buf, &len, &data, (void *)section->data.fileinfo.path, section->data.fileinfo.pathlen);
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)section->data.fileinfo.path, section->data.fileinfo.pathlen);
 
 				tmpuint32 = htonl(section->data.fileinfo.usernamelen);
-				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
-				bufferadd(&buf, &len, &data, (void *)section->data.fileinfo.username, section->data.fileinfo.usernamelen);
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)section->data.fileinfo.username, section->data.fileinfo.usernamelen);
 				
 				tmpuint32 = htonl(section->data.fileinfo.modified);
-				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				tmpuint32 = htonl(section->data.fileinfo.size);
-				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				tmpuint32 = htonl(section->data.fileinfo.replicas);
-				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				break;
 			case nonext:
 				tmpuint16 = 0;
-				bufferadd(&buf, &len, &data, (void *)&tmpuint16, sizeof(tmpuint16));
+				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint16, sizeof(tmpuint16));
 				break;
 			default:
 				break;
 		}
 	}
 
+	*buffer = buf;
 	return len;
 }
 

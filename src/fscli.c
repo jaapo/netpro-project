@@ -57,7 +57,7 @@ void get_server_address() {
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
-	ret = getaddrinfo(server, "123", &hints, &serv_ai);
+	ret = getaddrinfo(server, "1234", &hints, &serv_ai);
 	if (ret != 0) {
 		logwrite(logfile, "getaddrinfo error: %s", gai_strerror(ret));
 	}
