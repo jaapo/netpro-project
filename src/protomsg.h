@@ -1,3 +1,6 @@
+#ifndef PROTOMSG_H
+#define PROTOMSG_H
+
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -64,3 +67,8 @@ void fsmsg_free(struct fsmsg *msg);
 
 uint64_t htonll(uint64_t host64);
 uint64_t ntohll(uint64_t net64);
+
+
+//PROTOMSG_H
+#endif
+

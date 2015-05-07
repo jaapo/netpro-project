@@ -1,3 +1,4 @@
+#include "protomsg.h"
 #include "fap.h"
 #include "util.h"
 
