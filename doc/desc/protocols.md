@@ -59,13 +59,14 @@ Error codes and explanations
 | 7    | insufficient replicas
 | 8    | abort
 | 9    | unknown error
+
 #### File access protocol
 
 Clients and file servers use the file access protocol, FAP. FAP uses TCP. TCP port xxxxx is used for control messages and TCP port xxxxx2 for data.
 
 ##### Outline
 
-When client process is started, it creates a TCP connection to the file server port xxxxx and sends the **handshake** message. Server registers the client and sends a response. Response contains a port number for data transfer.
+When client process is started, it creates a TCP connection to the file server port xxxxx and sends the **hello** message. Server registers the client and sends a response. Response contains a port number for data transfer.
 Client issues commands to the server using the same initial TCP connection. If command requires file data transmission, the data connection is used for the purpose.
 When client exits, it closes the connection by sending a **quit** message to the server. Server acknowledges this.
 
@@ -93,9 +94,9 @@ Every section ends with a the *next section* field. Rest of section format depen
 *transaction_id* identifies a single client server interaction. Transactions are initiated by clients and server's reponse must contain the same *transaction_id*.
 
 ##### Message types
-Message type determines rest of the message contents. Message types are *handshake*, *handshake response*, *status*, *quit*, *command*, *ack*, *error* and *response*. Message type numbers are in parentheses in the headers.
+Message type determines rest of the message contents. Message types are *hello*, *hello response*, *status*, *quit*, *command*, *ack*, *error* and *response*. Message type numbers are in parentheses in the headers.
 
-###### handshake (message type number: 1)
+###### hello (message type number: 1)
 Two string sections: hostname, username. The **client id** and **server id** fields are 0 in this message.
 
 ###### quit (3)
@@ -148,12 +149,12 @@ Command names (and command numbers):
 
 - list (10)
 
-	Message sections: path of directory as string
+	Message sections: recurse integer (1=yes, 0=no), path of directory as string
 
 ##### Response message types
 Response messages are sent from file server to client in response to client messages.
 
-###### handshake response (2)
+###### hello response (2)
 Sections: server name (string), TCP port number for data transfer (integer)
 
 ###### ack (7)
@@ -204,17 +205,17 @@ DCP is a binary protocol. Every message contain 64-bit *transaction id*, *server
     | ....                                           | Next section  |
 
 ##### Message type
-Message types are *handshake*, *handshake response*, *lock*, *create*, *read*, *update*, *delete*, *search*, *invalidate*, *replica*, *disconnect*, *ack* and *file info*.
+Message types are *hello*, *hello response*, *lock*, *create*, *read*, *update*, *delete*, *search*, *invalidate*, *replica*, *disconnect*, *ack* and *file info*.
 
 Message sections and numbers:
 
-- handshake (1)
+- hello (1)
 
 	Sections: server name (string), server maximum capacity in bytes (integer), server current disk usage in bytes (integer), server file count (integer)
 
 	File system ID is 0 in this message
 
-- handshake response (2)
+- hello response (2)
 
 	Sections: refresh (integer)
 
@@ -318,7 +319,7 @@ FAP is a request-response protocol. Client sends a request and waits for server'
 This list describes communication related to each client action.
 
 ##### Client startup
-When client process starts it creates the FAP TCP connection to port xxxx1. After connection has been successfully initialized, client sends the **handshake** message and waits for server's **handshake response**. When server receives a **handshake** from client, it adds the client to its client list, assigns a data port for it, and replies with the **handshake response**. Client opens another TCP connection to the server using remote port xxxx2. User is notified about server name and successful connection.
+When client process starts it creates the FAP TCP connection to port xxxx1. After connection has been successfully initialized, client sends the **hello** message and waits for server's **hello response**. When server receives a **hello** from client, it adds the client to its client list, assigns a data port for it, and replies with the **hello response**. Client opens another TCP connection to the server using remote port xxxx2. User is notified about server name and successful connection.
 
 ##### Error handling
 If file server fails fullfilling a client request, it sends an **error** response to the client. This means that the current transaction is over and the operation failed. **error** message contains error number. Message contains also a string describing the error. File server must log errors. Client must show error's type and description to user.
@@ -428,9 +429,9 @@ DCP is a request-response protocol. Message sequences of transactions are descri
 
 #### File server start
 1. file server: count stored files and the space they take
-1. file server: send **handshake** to directory server
-2. directory server: reply with **handshake response**
-	- if file server has files (file count in handshake is not 0), set refresh to 1
+1. file server: send **hello** to directory server
+2. directory server: reply with **hello response**
+	- if file server has files (file count in hello is not 0), set refresh to 1
 	- otherwise set refresh to 0 and protocol is done
 4. file server: send **file info** message containing all server files
 5. directory server: compare timestamps of file server's files and directory server files

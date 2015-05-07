@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=c99 -ggdb -Wall -pedantic
+CFLAGS=-std=c99 -ggdb -Wall -pedantic -D_GNU_SOURCE
 BINS=$(addprefix bin/,protomsg.o fap.o dcp.o fctp.o fscli fsdird fsservd)
 
 .PHONY: all

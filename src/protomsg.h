@@ -2,6 +2,10 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+#define TYPEFILE 1
+#define TYPEDIR 2
+
+
 enum section_type {
 	nonext = 0,
 	integer = 1,
@@ -52,8 +56,10 @@ struct fsmsg {
 
 int fsmsg_to_buffer(struct fsmsg *msg, char **buffer);
 struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol protocol);
+struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol);
+struct fsmsg* fsmsg_read(int sockd);
 struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol);
-void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data data);
+void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *data);
 void fsmsg_free(struct fsmsg *msg);
 
 uint64_t htonll(uint64_t host64);

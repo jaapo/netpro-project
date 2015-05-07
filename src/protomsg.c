@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "protomsg.h"
 
 #define FREEIF(x) do{if(x)free(x);}while(0)
@@ -77,6 +78,11 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer) {
 				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				tmpuint32 = htonl(section->data.fileinfo.replicas);
 				bufferadd(&buf, &len, &data, (void *)&tmpuint32, sizeof(tmpuint32));
+				break;
+			case nonext:
+				tmpuint16 = 0;
+				bufferadd(&buf, &len, &data, (void *)&tmpuint16, sizeof(tmpuint16));
+				break;
 			default:
 				break;
 		}
@@ -173,7 +179,7 @@ struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol proto
 				fi->path = malloc(fi->pathlen);
 				TRY(readval(buffer, len, &ptr, fi->pathlen, fi->path));
 
-				//usernam
+				//username
 				TRY(readval(buffer, len, &ptr, sizeof(fi->usernamelen), &fi->usernamelen));
 				fi->username = malloc(fi->usernamelen);
 				TRY(readval(buffer, len, &ptr, fi->usernamelen, fi->username));
@@ -181,6 +187,100 @@ struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol proto
 				TRY(readval(buffer, len, &ptr, sizeof(fi->modified), &fi->modified));
 				TRY(readval(buffer, len, &ptr, sizeof(fi->size), &fi->size));
 				TRY(readval(buffer, len, &ptr, sizeof(fi->replicas), &fi->replicas));
+
+				break;
+			default:
+				goto fail;
+		}
+	}
+
+	return msg;
+fail:
+	fsmsg_free(msg);
+	return NULL;
+}
+
+struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
+	struct fsmsg *msg;
+	msg = fsmsg_create(protocol);
+
+	//read ids, transaction id is first
+	TRY(read(sd, &msg->tid, sizeof(msg->tid)));
+
+	int idcount;
+	switch (protocol) {
+		case FAP:
+		case FCTP:
+			idcount = 3;
+			break;
+		case DCP:
+			idcount = 2;
+			break;
+	}
+
+	msg->ids = malloc((idcount+1)*sizeof(uint64_t));
+	for (int i=0;i<idcount;i++) {
+		TRY(read(sd, &msg->ids[i], sizeof(msg->tid)));
+	}
+	
+	//message type
+	TRY(read(sd, &msg->msg_type, sizeof(msg->msg_type)));
+	
+	//sections
+	uint16_t sectype;
+	int sectioncount;
+	struct msg_section *s;
+	while(1) {
+		TRY(read(sd, &sectype, sizeof(sectype)));
+		if (ntohs(sectype) == nonext) break;
+
+		sectioncount++;
+		msg->sections = realloc(msg->sections, (sectioncount+1)*sizeof(struct msg_section*));
+		msg->sections[sectioncount] = NULL;
+		s = malloc(sizeof(struct msg_section));
+		msg->sections[sectioncount-1] = s;
+
+		s->type = sectype;
+
+		switch ((enum section_type) ntohs(sectype)) {
+			struct fileinfo_sect *fi;
+			case integer:
+				TRY(read(sd, &s->data.integer, sizeof(s->data.integer)));
+				break;
+			case string:
+				//read length
+				TRY(read(sd, &s->data.string.length, sizeof(s->data.string.length)));
+
+				//read data
+				s->data.string.data = malloc(s->data.string.length);
+				TRY(read(sd, s->data.string.data, s->data.string.length));
+				break;
+			case binary:
+				//read length
+				TRY(read(sd, &s->data.binary.length, sizeof(s->data.binary.length)));
+
+				//read data
+				s->data.binary.data = malloc(s->data.binary.length);
+				TRY(read(sd, s->data.binary.data, s->data.binary.length));
+				break;
+			case fileinfo:
+				fi = &s->data.fileinfo;
+				//file type byte
+				TRY(read(sd, &fi->type, sizeof(fi->type)));
+
+				//path
+				TRY(read(sd, &fi->pathlen, sizeof(fi->pathlen)));
+				fi->path = malloc(fi->pathlen);
+				TRY(read(sd, fi->path, fi->pathlen));
+
+				//usernam
+				TRY(read(sd, &fi->usernamelen, sizeof(fi->usernamelen)));
+				fi->username = malloc(fi->usernamelen);
+				TRY(read(sd, fi->username, fi->usernamelen));
+
+				TRY(read(sd, &fi->modified, sizeof(fi->modified)));
+				TRY(read(sd, &fi->size, sizeof(fi->size)));
+				TRY(read(sd, &fi->replicas, sizeof(fi->replicas)));
 
 				break;
 			default:
@@ -221,7 +321,7 @@ struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol) {
 }
 
 
-void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data data) {
+void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *data) {
 	int sectioncount;
 
 	while (msg->sections[sectioncount++]);
@@ -233,45 +333,48 @@ void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data data
 	struct msg_section *sec = msg->sections[sectioncount-1];
 	sec->type = htons(type);
 
-	switch (type) {
+	switch ((enum section_type) type) {
 		struct fileinfo_sect *fi;
 		case integer:
-			sec->data.integer = htonl(data.integer);
+			sec->data.integer = htonl(data->integer);
 			break;
 		case string:
-			sec->data.string.length = htonl(data.string.length);
-			sec->data.string.data = malloc(data.string.length);
-			memcpy(sec->data.string.data, data.string.data, data.string.length);
+			sec->data.string.length = htonl(data->string.length);
+			sec->data.string.data = malloc(data->string.length);
+			memcpy(sec->data.string.data, data->string.data, data->string.length);
 			break;
 		case binary:
-			sec->data.binary.length = htonl(data.binary.length);
-			sec->data.binary.data = malloc(data.binary.length);
-			memcpy(sec->data.binary.data, data.binary.data, data.binary.length);
+			sec->data.binary.length = htonl(data->binary.length);
+			sec->data.binary.data = malloc(data->binary.length);
+			memcpy(sec->data.binary.data, data->binary.data, data->binary.length);
 			break;
 		case fileinfo:
 			fi = &sec->data.fileinfo;
 			//file type byte
-			fi->type = data.fileinfo.type;
+			fi->type = data->fileinfo.type;
 
 			//path len
-			fi->pathlen = htonl(data.fileinfo.pathlen);
+			fi->pathlen = htonl(data->fileinfo.pathlen);
 			///path
 			fi->path = malloc(fi->pathlen);
-			memcpy(fi->path, data.fileinfo.path, fi->pathlen);
+			memcpy(fi->path, data->fileinfo.path, fi->pathlen);
 
 			//usernam len
-			fi->usernamelen = ntohl(data.fileinfo.usernamelen);
+			fi->usernamelen = ntohl(data->fileinfo.usernamelen);
 			///username
 			fi->username = malloc(fi->usernamelen);
-			memcpy(fi->username, data.fileinfo.username, fi->usernamelen);
+			memcpy(fi->username, data->fileinfo.username, fi->usernamelen);
 
 			//modified
-			fi->modified = ntohl(data.fileinfo.modified);
+			fi->modified = ntohl(data->fileinfo.modified);
 			//size
-			fi->size = ntohl(data.fileinfo.size);
+			fi->size = ntohl(data->fileinfo.size);
 			//replica count
-			fi->replicas = ntohl(data.fileinfo.replicas);
-		break;
+			fi->replicas = ntohl(data->fileinfo.replicas);
+			break;
+		case nonext:
+			//no need to copy data
+			break;
 	}
 }
 

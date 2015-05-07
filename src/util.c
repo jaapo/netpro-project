@@ -39,14 +39,20 @@ void logwrite(FILE *logfile, char *fmtstr, ...) {
 
 	char logtime[128];
 	time_t t = time(NULL);
-	ret = strftime(logtime, 128, "%F %T %z", localtime(&t));
+	ret = strftime(logtime, 128, "%F %T %z ", localtime(&t));
 	if (ret<0) fprintf(stderr, "logging error!\n");
 	
 	ret = fputs(logtime, logfile);
 	if (ret <= 0) fprintf(stderr, "logging error!\n");
 
 	ret = vfprintf(logfile, fmtstr, ap);
-	if (ret<0) fprintf(stderr, "logging error!\n");
+	if (ret<=0) fprintf(stderr, "logging error!\n");
+
+	ret = fputc('\n', logfile);
+	if (ret<=0) fprintf(stderr, "logging error!\n");
+
+	ret = fflush(logfile);
+	syscallerr(ret, "log flush error!");
 }
 
 int readline(char *buffer, int fp, int maxline) {
