@@ -38,8 +38,9 @@ int main(int argc, char* argv[], char* envp[]) {
 	logfile = logopen(logpath);
 	print_hello();
 
-	get_server_address();
+	serv_ai = get_server_address(server, FAPPORT, logfile);
 	start_connect();
+	cwd = "/";
 	prompt_loop();
 	return 0;
 }
@@ -47,20 +48,6 @@ int main(int argc, char* argv[], char* envp[]) {
 void print_hello() {
 	printf("DFS CLIENT 0.0\n");
 	printf("==============\n");
-}
-
-void get_server_address() {
-	int ret;
-
-	struct addrinfo hints;
-	hints.ai_flags = AI_V4MAPPED;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = 0;
-	ret = getaddrinfo(server, "1234", &hints, &serv_ai);
-	if (ret != 0) {
-		logwrite(logfile, "getaddrinfo error: %s", gai_strerror(ret));
-	}
 }
 
 void start_connect() {
@@ -93,12 +80,18 @@ void start_connect() {
 	syscallerr(fapsd, "fap-connection failed %s", server);
 }
 
-#define CHECKCMD(cmdstr, fun) do{\
-	if (!strncmp(cmdstr " ", command, (len < sizeof(cmdstr " ") ? len : sizeof(cmdstr " ")))) {\
-		fun(command + _cmdlen + 1, len - sizeof(cmdstr " ") - 1);\
-	}
-
 #define MIN(a,b) ((a)<(b)?(a):(b))
+#define CHECKCMD_ARGS(cmdstr, fun) \
+	if (!strncmp(cmdstr " ", command, MIN(len, sizeof(cmdstr " ") - 1))) {\
+		fun(command + sizeof(cmdstr " ") - 1, len - sizeof(cmdstr " ") - 1);\
+	} else
+
+#define CHECKCMD_NOARGS(cmdstr, fun) \
+	if (!strncmp(cmdstr "\n", command, MIN(len, sizeof(cmdstr "\n")-1))) {\
+		fun(NULL, 0);\
+	} else
+
+#define NOT_IMPLEMENTED(a,b) fprintf(stderr, "not implemented!\n")
 
 void prompt_loop() {
 	char command[MAX_LINE];
@@ -106,39 +99,39 @@ void prompt_loop() {
 
 	for (;;) {
 		printf("> ");
+		fflush(stdout);
 		len = readline(command, STDIN_FILENO, MAX_LINE);
-		if (len == 0) continue;
+		if (len == 0) client_quit();
 
-		if (!strncmp(command, "cd ", MIN(3, len))) {
-			change_dir(command + 3, len-3);
-		} else if (!strncmp(command, "pwd ", MIN(4, len))) {
-			working_dir(command + 4, len-3);
-		} else if (!strncmp(command, "ls ", MIN(3, len))) {
-			list_dir(command + 3, len - 3);
-		} else if (!strncmp(command, "cat ", MIN(4, len))) {
-
-		} else if (!strncmp(command, "edit ", MIN(5, len))) {
-
-		} else if (!strncmp(command, "rm ", MIN(3, len))) {
-
-		} else if (!strncmp(command, "rmdir ", MIN(6, len))) {
-		} else if (!strncmp(command, "mkdir ", MIN(6, len))) {
-		} else if (!strncmp(command, "cp ", MIN(3, len))) {
-		} else if (!strncmp(command, "find ", MIN(5, len))) {
-		} else if (!strncmp(command, "quit ", MIN(5, len))) {
-
-		} else {
-			printf("unknown command\n");
-		}
+		CHECKCMD_ARGS("cd", change_dir)
+		CHECKCMD_NOARGS("pwd", working_dir)
+		CHECKCMD_ARGS("ls", list_dir)
+		CHECKCMD_NOARGS("ls", list_dir)
+		CHECKCMD_ARGS("ls", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("cat", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("edit", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("rm", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("rmdir", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("mkdir", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("cp", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("find", NOT_IMPLEMENTED)
+		CHECKCMD_NOARGS("quit", client_quit)
+		printf("unknown command\n");
 	}
-}	
+}
+
+void client_quit() {
+	fap_client_quit(fapsd, cid);
+	printf("bye\n");
+	exit(0);
+}
 
 void change_dir(char *args, int arglen) {
 	char *dir;
 	int ret, i;
 	struct fileinfo_sect *files;
 
-	ret = fap_list(cid, 1, cwd, &files);
+	ret = fap_list(fapsd, cid, 1, cwd, &files);
 
 	if (ret < 0) {
 		printf("change_dir listing error\n");
@@ -168,7 +161,7 @@ void list_dir(char *args, int arglen) {
 	int ret, i;
 	struct fileinfo_sect *files;
 
-	ret = fap_list(cid, 1, cwd, &files);
+	ret = fap_list(fapsd, cid, 1, cwd, &files);
 
 	if (ret < 0) {
 		printf("change_dir listing error\n");

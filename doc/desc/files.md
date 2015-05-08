@@ -8,8 +8,9 @@ All components use the same configuration file syntax. This file contains one op
 Client has a configuration file `/etc/dfs_client.conf`. Alternative file name can be given as a command line parameter.
 
 Configuration parameters are
-	- `file_server` - IP-address or name of client's file server
-	- `log_file` - path to the client log file
+
+- `file_server` - IP-address or name of client's file server
+- `log_file` - path to the client log file
 
 Client may create some temporary files to `/tmp` for example to allow user to edit text files locally.
 
@@ -20,6 +21,7 @@ File server's state is mainly volatile. File server uses a single configuration 
 File server uses a single configuration file `/etc/dfs_fileserv.conf`. Alternative file path may be given as a command line parameter.
 
 Configuration parameters are
+
 - `directory_server` - IP-address or name of the directory server
 - `data_location` - path to server's data directory in local file system
 - `maximum_space` - maximum total size of files to store, may use abbrevations (e.g. 10G, 500M), minimum size is 10M
@@ -34,6 +36,7 @@ Directory server uses a configuration file. File system's directory is stored in
 Directory server has a single configuration file `/etc/dfs_dirserv.conf`. Alternative file path may be given as a command line parameter.
 
 Configuration parameters are
+
 - `data_location` - path to directory to store server data
 - `min_replicas` - minimum number of replicas of a file to allow
 
@@ -41,6 +44,7 @@ Configuration parameters are
 File system contents are saved in file called `fs` inside the data directory.  The file is written when server process exits. Server process can also do this periodically while running. This file contains a textual record of every file. Record fields are separated with a single space character.
 
 Fields are
+
 - file type, 1=regular file, 2=directory
 - timestamp, 32 bit unsigned integer
 - file size in bytes
@@ -50,6 +54,7 @@ Fields are
 An example of `fs` file line: `1 1427910946 142 coder /public/code/main.c`
 
 File system log for recovery purposes is stored with name `fs.log`. It is a text file and has following fields:
+
 - timestamp
 - action, CREATE/UPDATE/DELETE
 - path

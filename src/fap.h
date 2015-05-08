@@ -5,16 +5,45 @@
 #include <netdb.h>
 
 enum fap_type {
-	FAP_COMMAND = 5,
 	FAP_HELLO = 1,
-	FAP_QUIT = 3
+	FAP_HELLO_RESPONSE = 2,
+	FAP_QUIT = 3,
+	FAP_COMMAND = 5,
+	FAP_RESPONSE = 6,
+	FAP_ERROR = 8
+};
+
+enum fap_commands {
+	FAP_CMD_CREATE = 1,
+	FAP_CMD_OPEN = 2,
+	FAP_CMD_CLOSE = 3,
+	FAP_CMD_STAT = 4,
+	FAP_CMD_READ = 5,
+	FAP_CMD_WRITE = 6,
+	FAP_CMD_DELETE = 7,
+	FAP_CMD_COPY = 8,
+	FAP_CMD_FIND = 9,
+	FAP_CMD_LIST = 10
+};
+
+enum fap_responses {
+	FAP_OK = 1,
+	FAP_FILEINFO = 2,
+	FAP_DATAOUT = 3
 };
 
 uint64_t nexttid();
 void fap_init_server();
 
+//client related
 int fap_open(const struct addrinfo *serv_ai, uint64_t *cid);
-int fap_list(uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files);
+void fap_client_quit(int sd, uint64_t cid);
+int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files);
+
+//server related
+int fap_accept(int sd);
+
+//message related
 struct fsmsg* fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_id, uint64_t filesystem_id, enum fap_type msg_type);
 
 //FAP_H

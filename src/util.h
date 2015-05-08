@@ -15,3 +15,5 @@ void add_config_param(const char *name, char **val);
 int read_config(const char *filename);
 FILE* logopen(const char *logpath);
 void logwrite(FILE *logfile, char *fmtstr, ...);
+
+struct addrinfo *get_server_address(char *hostname, char *servname, FILE *logfile);

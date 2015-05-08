@@ -6,6 +6,10 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
+#include <syslog.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include "util.h"
 
@@ -119,4 +123,25 @@ int read_config(const char *filename) {
 
 	close(fp);
 	return i;
+}
+
+struct addrinfo *get_server_address(char *hostname, char *servname, FILE *logfile) {
+	int ret;
+
+	struct addrinfo hints, *res;
+	hints.ai_flags = AI_V4MAPPED;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+
+	ret = getaddrinfo(hostname, servname, &hints, &res);
+	if (ret != 0) {
+		if (logfile)
+			logwrite(logfile, "getaddrinfo error: %s", gai_strerror(ret));
+		else
+			syslog(LOG_USER | LOG_ERR, "getaddrinfo error: %s", gai_strerror(ret));
+		return NULL;
+	}
+
+	return res;
 }

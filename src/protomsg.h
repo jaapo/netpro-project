@@ -8,6 +8,10 @@
 #define TYPEFILE 1
 #define TYPEDIR 2
 
+#define FAPPORT "1234"
+#define DCPPORT "1235"
+#define FCTPCTRLPORT "1236"
+#define FCTPDATAPORT "1237"
 
 enum section_type {
 	nonext = 0,
@@ -57,13 +61,16 @@ struct fsmsg {
 };
 
 
-int fsmsg_to_buffer(struct fsmsg *msg, char **buffer);
+int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_read(int sockd);
 struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol);
 void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *data);
+void fsmsg_free_section(struct msg_section *s);
 void fsmsg_free(struct fsmsg *msg);
+void fsmsg_fileinfo_copy(struct fileinfo_sect* dst, struct fileinfo_sect* src);
+struct msg_section *fsmsg_section_copy(struct msg_section *s);
 
 int bufferadd(char **buffer, int *buflen, char **ptr, const void *data, int datalen);
 uint64_t htonll(uint64_t host64);
