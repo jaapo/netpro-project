@@ -64,8 +64,9 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	syscallerr(ret, "error getting name of local host with gethostbyname()");
 	data.string.length = strlen(data.string.data);
 	fsmsg_add_section(msg, string, &data);
+	free(data.string.data);
 
-	data.string.data = strdup(getlogin());
+	data.string.data = getlogin();
 	data.string.length = strlen(data.string.data);
 	fsmsg_add_section(msg, string, &data);
 
@@ -197,21 +198,39 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	return i;
 }
 
-int fap_accept(int sd, uint64_t client_id) {
+int fap_accept(struct client_info *info) {
 	struct fsmsg *msg, *respmsg;
 	char *buffer;
 	int len, ret;
 
-	msg = fsmsg_from_socket(sd, FAP);
+	msg = fsmsg_from_socket(info->sd, FAP);
 	if (!msg) return -1;
 	if (msg->msg_type != FAP_HELLO) return -2;
+	if (fap_validate_sections(msg)<0) {
+		fsmsg_free(msg);
+		return -1;
+	}
 
-	respmsg = fap_create_msg(msg->tid, sid, client_id, fsid, FAP_HELLO_RESPONSE);
+	info->host = strndup(msg->sections[0]->data.string.data, msg->sections[0]->data.string.length);
+	info->user = strndup(msg->sections[1]->data.string.data, msg->sections[1]->data.string.length);
+
+	respmsg = fap_create_msg(msg->tid, sid, info->id, fsid, FAP_HELLO_RESPONSE);
+
+	union section_data data;
+	
+	data.string.data = malloc(HOST_NAME_MAX);
+	ret = gethostname(data.string.data, HOST_NAME_MAX);
+	syscallerr(ret, "error getting name of local host with gethostbyname()");
+	data.string.length = strlen(data.string.data);
+	fsmsg_add_section(respmsg, string, &data);
+
+	data.integer = info->dataport;
+	fsmsg_add_section(respmsg, integer, &data);
 	fsmsg_add_section(respmsg, nonext, NULL);
 	len = fsmsg_to_buffer(respmsg, &buffer, FAP);
 
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
+	ret = write(info->sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, info->sd, buffer, len);
 
 	free(buffer);
 	fsmsg_free(msg);

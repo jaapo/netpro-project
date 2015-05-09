@@ -147,7 +147,7 @@ void do_fap_server() {
 		}
 		clinfo = &clients[ret];
 
-		ret = fap_accept(clisd, client_id);
+		ret = fap_accept(clinfo);
 		if (ret < 0) {
 			fprintf(stderr, "error accepting client");
 			close(clisd);
@@ -231,6 +231,7 @@ int register_client(int clisd, uint64_t cid) {
 		if (clients[i].id == 0) {
 			clients[i].id = cid;
 			clients[i].sd = clisd;
+			clients[i].dataport = FAP_DATAPORT_BASE + i;
 			clicnt++;
 			break;
 		}

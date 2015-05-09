@@ -17,6 +17,8 @@
 #define FCTPCTRLPORT "1236"
 #define FCTPDATAPORT "1237"
 
+#define FAP_DATAPORT_BASE 40100
+
 #define HTONSTHIS(a) do{(a)=htons(a);}while(0)
 #define HTONLTHIS(a) do{(a)=htonl(a);}while(0)
 #define HTONLLTHIS(a) do{(a)=htonll(a);}while(0)

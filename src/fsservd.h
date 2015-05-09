@@ -1,7 +1,4 @@
-struct client_info {
-	uint64_t id;
-	int sd;
-};
+#include "fap.h"
 
 void read_args(int argc, char* argv[]);
 void go_daemon();
