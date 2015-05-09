@@ -174,7 +174,7 @@ void serve_client(struct client_info *info) {
 				close(info->sd);
 				info->id = 0;
 				info->sd = 0;
-				
+				return;
 				break;
 			case FAP_COMMAND:
 				if (msg->sections[0]->type != integer) {

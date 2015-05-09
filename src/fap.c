@@ -78,12 +78,12 @@ int fap_client_wait_ok(int sd, uint64_t tid) {
 		fprintf(stderr, "fsmsg_from_socket return NULL\n");
 		return -1;
 	}
-	if (ntohll(msg->tid) != tid) {
+	if (msg->tid != tid) {
 		fprintf(stderr, "received response with invalid tid\n");
 		return -1;
 	}
-	if ((enum fap_responses) ntohs(msg->msg_type) != FAP_OK) {
-		fprintf(stderr, "expected OK-response, received %d\n", (enum fap_responses) ntohs(msg->msg_type));
+	if ((enum fap_responses) msg->msg_type != FAP_OK) {
+		fprintf(stderr, "expected OK-response(%d), received %d\n", FAP_OK, (enum fap_responses) msg->msg_type);
 		return -1;
 	}
 
@@ -177,7 +177,7 @@ void fap_send_ok(int sd, uint64_t tid, uint64_t client_id) {
 	char *buffer;
 	int len, ret;
 	
-	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_HELLO_RESPONSE);
+	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_OK);
 	fsmsg_add_section(msg, nonext, NULL);
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 
