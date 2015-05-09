@@ -44,6 +44,8 @@ int main(int argc, char* argv[], char* envp[]) {
 
 	serv_ai = get_server_address(server, FAPPORT, logfile);
 	start_connect();
+
+	printf("connected to %s\n", servername);
 	cwd = "/";
 	prompt_loop();
 	return 0;

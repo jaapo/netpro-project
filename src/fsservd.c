@@ -80,18 +80,18 @@ void connect_dirserv() {
 		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen, servaddr, NI_MAXHOST, servport, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
 
 		if (ret != 0) {
-			syslog(SYSLOGPRIO, "getnameinfo error: %s", gai_strerror(ret));
+			SYSLOG(SYSLOGPRIO, "getnameinfo error: %s", gai_strerror(ret));
 			servaddr[0] = '\0';
 			servport[0] = '\0';
 		}
 		
 		printf("connecting to directory server %s (%s:%s)...\n", dirserver, servaddr, servport);
-		syslog(SYSLOGPRIO, "connecting to directory server %s (%s:%s)", dirserver, servaddr, servport);
+		SYSLOG(SYSLOGPRIO, "connecting to directory server %s (%s:%s)", dirserver, servaddr, servport);
 		
 		dssd = dcp_open(ai, &sid);
 		if (dssd >= 0) break;
 		printf("connection failed\n");
-		syslog(SYSLOGPRIO, "connection failed");
+		SYSLOG(SYSLOGPRIO, "directory server connection to %s failed", dirserver);
 
 		ai = ai->ai_next;
 	}
@@ -154,6 +154,7 @@ void do_fap_server() {
 			continue;
 		}
 
+		SYSLOG(SYSLOGPRIO, "connection from %s by user %s", clinfo->host, clinfo->user);
 		serve_client(clinfo);
 	}
 }
