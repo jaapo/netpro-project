@@ -100,12 +100,16 @@ void connect_dirserv() {
 }
 
 void start_listen() {
-	int ret;
+	int ret, one = 1;
 	struct sockaddr_in bindaddr;
 	socklen_t bindaddrlen = sizeof(bindaddr);
 
 	listensd = socket(AF_INET, SOCK_STREAM, 0);
-	syscallerr(listensd, "start_listen(): socket() failed");
+	syscallerr(listensd, "%s: socket() failed", __func__);
+
+	ret = setsockopt(listensd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	syscallerr(ret, "%s: setsockopt() failed", __func__);
+
 
 	//TODO: use getaddrinfo for ipv6 support
 	memset(&bindaddr, '\0', sizeof(bindaddr));
@@ -114,10 +118,10 @@ void start_listen() {
 	bindaddr.sin_port = htons(1234);
 
 	ret = bind(listensd, (struct sockaddr *) &bindaddr, bindaddrlen);
-	syscallerr(ret, "start_listen(): socket() failed");
+	syscallerr(ret, "%s: socket() failed", __func__);
 
 	ret = listen(listensd, 5);
-	syscallerr(ret, "start_listen(): listen() failed");
+	syscallerr(ret, "%s: listen() failed", __func__);
 }
 
 //TODO: threads
