@@ -137,7 +137,7 @@ void do_fap_server() {
 	for (;;) {
 		clisd = accept(listensd, cliaddr, &cliaddrlen);
 		if (clisd < 0 && errno == EINTR) continue;
-		syscallerr(clisd, "do_fap_server: accept() failed");
+		syscallerr(clisd, "%s: accept() failed", __func__);
 		
 		ret = register_client(clisd, client_id);
 		if (ret < 0) {
@@ -169,6 +169,11 @@ void serve_client(struct client_info *info) {
 
 		switch ((enum fap_type) msg->msg_type) {
 			case FAP_QUIT:
+				DEBUGPRINT("client %ld quit", info->id);
+				fap_send_ok(info->sd, msg->tid, info->id);
+				close(info->sd);
+				info->id = 0;
+				info->sd = 0;
 				
 				break;
 			case FAP_COMMAND:

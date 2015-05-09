@@ -13,6 +13,14 @@
 #define FCTPCTRLPORT "1236"
 #define FCTPDATAPORT "1237"
 
+#define HTONSTHIS(a) do{(a)=htons(a);}while(0)
+#define HTONLTHIS(a) do{(a)=htonl(a);}while(0)
+#define HTONLLTHIS(a) do{(a)=htonll(a);}while(0)
+
+#define NTOHSTHIS(a) do{(a)=ntohs(a);}while(0)
+#define NTOHLTHIS(a) do{(a)=ntohl(a);}while(0)
+#define NTOHLLTHIS(a) do{(a)=ntohll(a);}while(0)
+
 enum section_type {
 	nonext = 0,
 	integer = 1,

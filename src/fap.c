@@ -51,7 +51,7 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid) {
 	return sd;
 }
 	
-void fap_client_quit(int sd, uint64_t cid) {
+uint64_t fap_client_quit(int sd, uint64_t cid) {
 	struct fsmsg *msg;
 	uint64_t tid = nexttid();
 	int len, ret;
@@ -67,6 +67,29 @@ void fap_client_quit(int sd, uint64_t cid) {
 
 	free(buffer);
 	fsmsg_free(msg);
+	return tid;
+}
+
+int fap_client_wait_ok(int sd, uint64_t tid) {
+	struct fsmsg *msg;
+
+	msg = fsmsg_from_socket(sd, FAP);
+	if (!msg) {
+		fprintf(stderr, "fsmsg_from_socket return NULL\n");
+		return -1;
+	}
+	if (ntohll(msg->tid) != tid) {
+		fprintf(stderr, "received response with invalid tid\n");
+		return -1;
+	}
+	if ((enum fap_responses) ntohs(msg->msg_type) != FAP_OK) {
+		fprintf(stderr, "expected OK-response, received %d\n", (enum fap_responses) ntohs(msg->msg_type));
+		return -1;
+	}
+
+	fsmsg_free(msg);
+
+	return 0;
 }
 
 int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files) {
@@ -149,15 +172,31 @@ int fap_accept(int sd, uint64_t client_id) {
 	return 0;
 }
 
+void fap_send_ok(int sd, uint64_t tid, uint64_t client_id) {
+	struct fsmsg *msg;
+	char *buffer;
+	int len, ret;
+	
+	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_HELLO_RESPONSE);
+	fsmsg_add_section(msg, nonext, NULL);
+	len = fsmsg_to_buffer(msg, &buffer, FAP);
+
+	ret = write(sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
+
+	free(buffer);
+	fsmsg_free(msg);
+}
+
 struct fsmsg *fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_id, uint64_t filesystem_id, enum fap_type msg_type) {
 	struct fsmsg *msg;
 	msg = fsmsg_create(FAP);
-	msg->tid = htonll(tid);
-	msg->ids[0] = htonll(server_id);
-	msg->ids[1] = htonll(client_id);
-	msg->ids[2] = htonll(filesystem_id);
+	msg->tid = tid;
+	msg->ids[0] = server_id;
+	msg->ids[1] = client_id;
+	msg->ids[2] = filesystem_id;
 
-	msg->msg_type = htons((uint16_t) msg_type);
+	msg->msg_type = (uint16_t) msg_type;
 
 	return msg;
 }

@@ -120,7 +120,13 @@ void prompt_loop() {
 }
 
 void client_quit() {
-	fap_client_quit(fapsd, cid);
+	uint64_t tid;
+	int ret;
+	tid = fap_client_quit(fapsd, cid);
+	ret = fap_client_wait_ok(fapsd, tid);
+	if (ret < 0) {
+		fprintf(stderr, "%s: error receiving ok-message\n", __func__);
+	}
 	printf("bye\n");
 	exit(0);
 }
