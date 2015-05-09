@@ -12,7 +12,7 @@
 #ifdef NDEBUG
 #define DEBUGPRINT(a...)
 #else
-#define DEBUGPRINT(format, ...) fprintf(stderr, CLRRED "DEBUG (%s:%d, %s): \n" format "\n" CLREND, __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define DEBUGPRINT(format, ...) fprintf(stderr, CLRRED "DEBUG (%s:%d, %s): " format CLREND "\n", __FILE__, __LINE__, __func__, __VA_ARGS__)
 #endif
 
 #define MAX_LINE 1024

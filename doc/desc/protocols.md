@@ -50,7 +50,7 @@ Error codes and explanations
 
 | code | explanation           |
 | ---- | --------------------- |
-| 1    | file not found      
+| 1    | file not found
 | 2    | file already exist
 | 3    | incompatible lock
 | 4    | command syntax error
@@ -58,7 +58,8 @@ Error codes and explanations
 | 6    | directory server unavailable
 | 7    | insufficient replicas
 | 8    | abort
-| 9    | unknown error
+| 9    | malformed message
+| 10   | unknown error
 
 #### File access protocol
 

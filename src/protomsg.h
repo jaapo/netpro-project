@@ -33,6 +33,19 @@ enum fsmsg_protocol {
 	FAP, DCP, FCTP
 };
 
+enum fsmsg_error {
+	ERR_FILENOTFOUND = 1,
+	ERR_EXISTS = 2,
+	ERR_LOCK = 3,
+	ERR_SYNTAX = 4,
+	ERR_FSERV_UNAVAILABLE = 5,
+	ERR_DSERV_UNAVAILABLE = 6,
+	ERR_REPLICAS = 7,
+	ERR_ABORT = 8,
+	ERR_MSG = 9,
+	ERR_UNKNOWN = 10
+};
+
 struct raw_sect {
 	uint32_t length;
 	char *data;

@@ -33,7 +33,8 @@ enum fap_responses {
 };
 
 uint64_t nexttid();
-void fap_init_server();
+
+void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *errstr);
 
 //client related
 int fap_open(const struct addrinfo *serv_ai, uint64_t *cid);
@@ -42,11 +43,13 @@ int fap_client_wait_ok(int sd, uint64_t tid);
 int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files);
 
 //server related
+void fap_init_server();
 int fap_accept(int sd, uint64_t client_id);
 void fap_send_ok(int sd, uint64_t tid, uint64_t client_id);
 
 //message related
 struct fsmsg* fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_id, uint64_t filesystem_id, enum fap_type msg_type);
+int fap_validate_sections(struct fsmsg* msg);
 
 //FAP_H
 #endif

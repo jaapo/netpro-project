@@ -14,6 +14,32 @@ uint64_t nexttid() {
 	return random();
 }
 
+void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *errstr) {
+	struct fsmsg *msg;
+	union section_data data;
+	char *buffer;
+	int len, ret;
+	
+	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_ERROR);
+
+	data.integer = errorn;
+	fsmsg_add_section(msg, integer, &data);
+
+	data.string.length = strlen(errstr);
+	data.string.data = errstr;
+	fsmsg_add_section(msg, string, &data);
+
+	fsmsg_add_section(msg, nonext, NULL);
+
+	len = fsmsg_to_buffer(msg, &buffer, FAP);
+
+	ret = write(sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
+
+	free(buffer);
+	fsmsg_free(msg);
+}
+
 void fap_init_server() {
 	fsid = 1;
 	sid = 1;
@@ -199,4 +225,103 @@ struct fsmsg *fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_i
 	msg->msg_type = (uint16_t) msg_type;
 
 	return msg;
+}
+
+//macro to test section type
+#define TESTST(t)do{if(s[i++]->type != t) return -1;}while(0)
+int fap_validate_sections(struct fsmsg* msg) {
+	struct msg_section **s;
+	int32_t cmd;
+	int count, resp, i = 0;
+
+	s = msg->sections;
+
+	switch ((enum fap_type) msg->msg_type) {
+		case FAP_HELLO:
+			TESTST(string);
+			TESTST(string);
+			break;
+		case FAP_HELLO_RESPONSE:
+			TESTST(string);
+			TESTST(integer);
+			break;
+		case FAP_QUIT:
+			break;
+		case FAP_COMMAND:
+			TESTST(integer);
+			cmd = s[0]->data.integer;
+			switch ((enum fap_commands) cmd) {
+				case FAP_CMD_CREATE:
+					TESTST(string);
+					TESTST(integer);
+					break;
+				case FAP_CMD_OPEN:
+				case FAP_CMD_CLOSE:
+				case FAP_CMD_STAT:
+					TESTST(string);
+					break;
+				case FAP_CMD_READ:
+					TESTST(string);
+					TESTST(integer);
+					TESTST(integer);
+					break;
+				case FAP_CMD_WRITE:
+					TESTST(string);
+					TESTST(integer);
+					break;
+				case FAP_CMD_DELETE:
+					TESTST(string);
+					TESTST(integer);
+					break;
+				case FAP_CMD_COPY:
+					TESTST(string);
+					TESTST(string);
+					TESTST(integer);
+					break;
+				case FAP_CMD_FIND:
+					TESTST(string);
+					TESTST(string);
+					break;
+				case FAP_CMD_LIST:
+					TESTST(integer);
+					TESTST(string);
+					break;
+				default:
+					DEBUGPRINT("unexpected command type (%d)", cmd);
+					return -1;
+			}
+			break;
+		case FAP_RESPONSE:
+			TESTST(integer);
+			resp = s[i-1]->data.integer;
+			switch ((enum fap_responses) resp) {
+				case FAP_OK:
+					break;
+				case FAP_FILEINFO:
+					TESTST(integer);
+					count = s[i-1]->data.integer;
+					for (int j=0;j<count;j++) {
+						TESTST(fileinfo);
+					}
+					break;
+				case FAP_DATAOUT:
+					TESTST(integer);
+					break;
+				default:
+					DEBUGPRINT("unexpected response type (%d)", resp);
+					return -1;
+			}
+			break;
+		case FAP_ERROR:
+			TESTST(integer);
+			TESTST(string);
+			break;
+		default:
+			DEBUGPRINT("unexpected message type (%d)", msg->msg_type);
+			return -1;
+	}
+	//always nonext as last
+	TESTST(nonext);
+
+	return 0;
 }

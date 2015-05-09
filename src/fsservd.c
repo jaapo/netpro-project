@@ -160,10 +160,16 @@ void do_fap_server() {
 
 void serve_client(struct client_info *info) {
 	struct fsmsg *msg;
+	int ret;
 	uint16_t cmd;
 
 	for(;;) {
 		msg = fsmsg_from_socket(info->sd, FAP);
+		ret = fap_validate_sections(msg);
+		if (ret < 0) {
+			fap_send_error(info->sd, msg->tid, info->id, ERR_MSG, "");
+			continue;
+		}
 
 		DEBUGPRINT("received message %hd from client %ld, socket %d", msg->msg_type, info->id, info->sd);
 
