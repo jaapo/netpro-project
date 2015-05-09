@@ -155,7 +155,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 	
 	//sections
 	uint16_t sectype;
-	int sectioncount;
+	int sectioncount = 0;
 	struct msg_section *s;
 	while(1) {
 		TRY(read(sd, &sectype, sizeof(sectype)));
@@ -258,7 +258,7 @@ struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol) {
 
 
 void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *data) {
-	int sectioncount;
+	int sectioncount = 0;
 
 	while (msg->sections[sectioncount++]);
 

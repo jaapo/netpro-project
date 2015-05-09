@@ -149,7 +149,7 @@ void do_fap_server() {
 
 		ret = fap_accept(clinfo);
 		if (ret < 0) {
-			fprintf(stderr, "error accepting client");
+			fprintf(stderr, "error accepting client\n");
 			close(clisd);
 			continue;
 		}

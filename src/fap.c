@@ -80,6 +80,7 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 
 	msg = fsmsg_from_socket(sd, FAP);
 	if (!msg) fprintf(stderr, "fsmsg_from_socket return NULL\n");
+	if (msg->msg_type != FAP_HELLO_RESPONSE) fprintf(stderr, "expected FAP_HELLO_RESPONSE (%d), received %d\n", FAP_HELLO_RESPONSE, msg->msg_type);
 	if (msg->tid != tid) fprintf(stderr, "received response with invalid tid\n");
 	
 	sid = msg->ids[1];
@@ -93,8 +94,8 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 		return -1;
 	}
 
-	*servername = strndup(msg->sections[1]->data.string.data, msg->sections[1]->data.string.length);
-	*dataport = msg->sections[2]->data.integer;
+	*servername = strndup(msg->sections[0]->data.string.data, msg->sections[0]->data.string.length);
+	*dataport = msg->sections[1]->data.integer;
 
 	fsmsg_free(msg);
 	return sd;
@@ -268,8 +269,14 @@ struct fsmsg *fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_i
 	return msg;
 }
 
-//macro to test section type
-#define TESTST(t)do{if(s[i++]->type != t) return -1;}while(0)
+//macro to test section type, nonext is not in list
+#define TESTST(t)do{\
+	if (!((s[i] == NULL && t == nonext) || s[i]->type == t)) {\
+		return -1;\
+	}\
+	i++;\
+}while(0)
+
 int fap_validate_sections(struct fsmsg* msg) {
 	struct msg_section **s;
 	int32_t cmd;
