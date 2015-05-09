@@ -119,104 +119,6 @@ int readval(const char *buf, int len, char **ptr, int readlen, void *dst) {
 }
 
 #define TRY(expr) do {if((expr)==0) goto fail;}while(0)
-
-struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol protocol) {
-	char *ptr;
-	ptr = buffer;
-
-	struct fsmsg *msg;
-	msg = fsmsg_create(protocol);
-
-	//read ids, transaction id is first
-	TRY(readval(buffer, len, &ptr, sizeof(msg->tid), &msg->tid));
-
-	int idcount;
-	switch (protocol) {
-		case FAP:
-		case FCTP:
-			idcount = 3;
-			break;
-		case DCP:
-			idcount = 2;
-			break;
-	}
-
-	msg->ids = malloc((idcount+1)*sizeof(uint64_t));
-	for (int i=0;i<idcount;i++) {
-		TRY(readval(buffer, len, &ptr, sizeof(msg->tid), &msg->ids[i]));
-	}
-	
-	//message type
-	TRY(readval(buffer, len, &ptr, sizeof(msg->msg_type), &msg->msg_type));
-	
-	//sections
-	uint16_t sectype;
-	int sectioncount;
-	struct msg_section *s;
-	while(1) {
-		TRY(readval(buffer, len, &ptr, sizeof(sectype), &sectype));
-		if (ntohs(sectype) == nonext) break;
-
-		sectioncount++;
-		msg->sections = realloc(msg->sections, (sectioncount+1)*sizeof(struct msg_section*));
-		msg->sections[sectioncount] = NULL;
-		s = malloc(sizeof(struct msg_section));
-		msg->sections[sectioncount-1] = s;
-
-		s->type = sectype;
-
-		switch ((enum section_type) ntohs(sectype)) {
-			struct fileinfo_sect *fi;
-			case integer:
-				TRY(readval(buffer, len, &ptr, sizeof(s->data.integer), &s->data.integer));
-				break;
-			case string:
-				//read length
-				TRY(readval(buffer, len, &ptr, sizeof(s->data.string.length), &s->data.string.length));
-
-				//read data
-				s->data.string.data = malloc(s->data.string.length);
-				TRY(readval(buffer, len, &ptr, s->data.string.length, s->data.string.data));
-				break;
-			case binary:
-				//read length
-				TRY(readval(buffer, len, &ptr, sizeof(s->data.binary.length), &s->data.binary.length));
-
-				//read data
-				s->data.binary.data = malloc(s->data.binary.length);
-				TRY(readval(buffer, len, &ptr, s->data.binary.length, s->data.binary.data));
-				break;
-			case fileinfo:
-				fi = &s->data.fileinfo;
-				//file type byte
-				TRY(readval(buffer, len, &ptr, sizeof(fi->type), &fi->type));
-
-				//path
-				TRY(readval(buffer, len, &ptr, sizeof(fi->pathlen), &fi->pathlen));
-				fi->path = malloc(fi->pathlen);
-				TRY(readval(buffer, len, &ptr, fi->pathlen, fi->path));
-
-				//username
-				TRY(readval(buffer, len, &ptr, sizeof(fi->usernamelen), &fi->usernamelen));
-				fi->username = malloc(fi->usernamelen);
-				TRY(readval(buffer, len, &ptr, fi->usernamelen, fi->username));
-
-				TRY(readval(buffer, len, &ptr, sizeof(fi->modified), &fi->modified));
-				TRY(readval(buffer, len, &ptr, sizeof(fi->size), &fi->size));
-				TRY(readval(buffer, len, &ptr, sizeof(fi->replicas), &fi->replicas));
-
-				break;
-			default:
-				goto fail;
-		}
-	}
-
-	return msg;
-fail:
-	fsmsg_free(msg);
-	return NULL;
-}
-
 struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 	struct fsmsg *msg;
 	msg = fsmsg_create(protocol);
@@ -306,7 +208,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 				//usernam
 				TRY(read(sd, &fi->usernamelen, sizeof(fi->usernamelen)));
 				NTOHLTHIS(fi->usernamelen);
-				fi->username = malloc(ntohl(fi->usernamelen));
+				fi->username = malloc(fi->usernamelen);
 				TRY(read(sd, fi->username, fi->usernamelen));
 
 				TRY(read(sd, &fi->modified, sizeof(fi->modified)));

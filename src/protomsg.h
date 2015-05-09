@@ -70,7 +70,6 @@ struct fsmsg {
 
 
 int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protocol);
-struct fsmsg* fsmsg_from_buffer(char *buffer, int len, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_read(int sockd);
 struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol);
