@@ -91,7 +91,6 @@ void start_connect() {
 		fun(NULL, 0);\
 	} else
 
-#define NOT_IMPLEMENTED(a,b) fprintf(stderr, "not implemented!\n")
 
 void prompt_loop() {
 	char command[MAX_LINE];

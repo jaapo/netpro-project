@@ -59,6 +59,9 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protoc
 	//sections
 	struct msg_section *section;
 	for (int i=0;(section = msg->sections[i]);i++) {
+		tmpuint16 = htons(section->type);
+		len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint16, sizeof(tmpuint16));
+
 		switch ((enum section_type) section->type) {
 			case integer:
 				tmpint32 = htonl(section->data.integer);
@@ -247,7 +250,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 	struct msg_section *s;
 	while(1) {
 		TRY(read(sd, &sectype, sizeof(sectype)));
-		if (ntohs(sectype) == nonext) break;
+		if (sectype == nonext) break;
 
 		sectioncount++;
 		msg->sections = realloc(msg->sections, (sectioncount+1)*sizeof(struct msg_section*));
@@ -255,9 +258,9 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 		s = malloc(sizeof(struct msg_section));
 		msg->sections[sectioncount-1] = s;
 
-		s->type = sectype;
+		s->type = (enum section_type) ntohs(sectype);
 
-		switch ((enum section_type) ntohs(sectype)) {
+		switch (s->type) {
 			struct fileinfo_sect *fi;
 			case integer:
 				TRY(read(sd, &s->data.integer, sizeof(s->data.integer)));
@@ -285,12 +288,12 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 
 				//path
 				TRY(read(sd, &fi->pathlen, sizeof(fi->pathlen)));
-				fi->path = malloc(fi->pathlen);
+				fi->path = malloc(ntohl(fi->pathlen));
 				TRY(read(sd, fi->path, fi->pathlen));
 
 				//usernam
 				TRY(read(sd, &fi->usernamelen, sizeof(fi->usernamelen)));
-				fi->username = malloc(fi->usernamelen);
+				fi->username = malloc(ntohl(fi->usernamelen));
 				TRY(read(sd, fi->username, fi->usernamelen));
 
 				TRY(read(sd, &fi->modified, sizeof(fi->modified)));

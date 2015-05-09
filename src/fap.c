@@ -36,13 +36,13 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid) {
 	char *buffer;
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 	ret = write(sd, buffer, len);
-	syscallerr(ret, "network error: fap_open write failed");
+	syscallerr(ret, "%s:network error: write() failed", __func__);
 	fsmsg_free(msg);
 
 
 	msg = fsmsg_from_socket(sd, FAP);
-	if (!msg) printf("fsmsg_from_socket return NULL\n");
-	if (msg->tid != tid) printf("received response with invalid tid\n");
+	if (!msg) fprintf(stderr, "fsmsg_from_socket return NULL\n");
+	if (msg->tid != tid) fprintf(stderr, "received response with invalid tid\n");
 	
 	sid = msg->ids[1];
 	*cid = msg->ids[2];
@@ -63,7 +63,7 @@ void fap_client_quit(int sd, uint64_t cid) {
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 
 	ret = write(sd, buffer, len);
-	syscallerr(ret, "fap_accept: write(%d, %p, %d) failed", sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, sd, buffer, len);
 
 	free(buffer);
 	fsmsg_free(msg);
@@ -89,7 +89,7 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 
 	ret = write(sd, buffer, len);
-	syscallerr(ret, "fap_accept: write(%d, %p, %d) failed", sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, sd, buffer, len);
 
 	free(buffer);
 	fsmsg_free(msg);
@@ -126,7 +126,7 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	return i;
 }
 
-int fap_accept(int sd) {
+int fap_accept(int sd, uint64_t client_id) {
 	struct fsmsg *msg, *respmsg;
 	char *buffer;
 	int len, ret;
@@ -135,12 +135,12 @@ int fap_accept(int sd) {
 	if (!msg) return -1;
 	if (msg->msg_type != FAP_HELLO) return -2;
 
-	respmsg = fap_create_msg(msg->tid, sid, msg->ids[1], fsid, FAP_HELLO_RESPONSE);
+	respmsg = fap_create_msg(msg->tid, sid, client_id, fsid, FAP_HELLO_RESPONSE);
 	fsmsg_add_section(respmsg, nonext, NULL);
 	len = fsmsg_to_buffer(respmsg, &buffer, FAP);
 
 	ret = write(sd, buffer, len);
-	syscallerr(ret, "fap_accept: write(%d, %p, %d) failed", sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
 
 	free(buffer);
 	fsmsg_free(msg);
