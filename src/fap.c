@@ -65,7 +65,7 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	data.string.length = strlen(data.string.data);
 	fsmsg_add_section(msg, string, &data);
 
-	data.string.data = getlogin();
+	data.string.data = strdup(getlogin());
 	data.string.length = strlen(data.string.data);
 	fsmsg_add_section(msg, string, &data);
 
@@ -77,7 +77,6 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	syscallerr(ret, "%s:network error: write() failed", __func__);
 	fsmsg_free(msg);
 
-
 	msg = fsmsg_from_socket(sd, FAP);
 	if (!msg) fprintf(stderr, "fsmsg_from_socket return NULL\n");
 	if (msg->tid != tid) fprintf(stderr, "received response with invalid tid\n");
@@ -86,6 +85,17 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	*cid = msg->ids[2];
 	fsid = msg->ids[3];
 
+	ret = fap_validate_sections(msg);
+	if (ret<0) {
+		fap_send_error(sd, tid, *cid, ERR_MSG, "");
+		fsmsg_free(msg);
+		return -1;
+	}
+
+	*servername = strndup(msg->sections[1]->data.string.data, msg->sections[1]->data.string.length);
+	*dataport = msg->sections[2]->data.integer;
+
+	fsmsg_free(msg);
 	return sd;
 }
 	
