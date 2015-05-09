@@ -37,7 +37,7 @@ uint64_t nexttid();
 void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *errstr);
 
 //client related
-int fap_open(const struct addrinfo *serv_ai, uint64_t *cid);
+int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, int32_t *dataport);
 uint64_t fap_client_quit(int sd, uint64_t cid);
 int fap_client_wait_ok(int sd, uint64_t tid);
 int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files);

@@ -45,7 +45,7 @@ void fap_init_server() {
 	sid = 1;
 }
 
-int fap_open(const struct addrinfo *serv_ai, uint64_t *cid) {
+int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, int32_t *dataport) {
 	int ret, sd, len;
 	sd = socket(serv_ai->ai_family, serv_ai->ai_socktype, 0);
 	ret = connect(sd, serv_ai->ai_addr, serv_ai->ai_addrlen);
@@ -57,7 +57,19 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid) {
 	struct fsmsg *msg;
 	uint64_t tid = nexttid();
 	msg = fap_create_msg(tid, 0, 0, 0, FAP_HELLO);
-	fsmsg_add_section(msg, 0, NULL);
+
+	union section_data data;
+	data.string.data = malloc(HOST_NAME_MAX);
+	ret = gethostname(data.string.data, HOST_NAME_MAX);
+	syscallerr(ret, "error getting name of local host with gethostbyname()");
+	data.string.length = strlen(data.string.data);
+	fsmsg_add_section(msg, string, &data);
+
+	data.string.data = getlogin();
+	data.string.length = strlen(data.string.data);
+	fsmsg_add_section(msg, string, &data);
+
+	fsmsg_add_section(msg, nonext, NULL);
 
 	char *buffer;
 	len = fsmsg_to_buffer(msg, &buffer, FAP);

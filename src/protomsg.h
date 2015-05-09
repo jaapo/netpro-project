@@ -5,6 +5,10 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 255
+#endif
+
 #define TYPEFILE 1
 #define TYPEDIR 2
 

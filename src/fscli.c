@@ -26,6 +26,10 @@ struct addrinfo *serv_ai;
 static int fapsd;
 static uint64_t cid;
 
+static int32_t dataport;
+
+static char *servername;
+
 static char *cwd;
 
 #define ERRFAIL(x,e)do {if((x)!=e)exit(1);} while(0)
@@ -69,7 +73,7 @@ void start_connect() {
 		printf("connecting to %s (%s:%s)...\n", server, servaddr, servport);
 		logwrite(logfile, "connecting to %s (%s:%s)", server, servaddr, servport);
 		
-		fapsd = fap_open(ai, &cid);
+		fapsd = fap_open(ai, &cid, &servername, &dataport);
 		if (fapsd >= 0) break;
 		printf("connection failed\n");
 		logwrite(logfile, "connection failed");
