@@ -115,7 +115,7 @@ void start_listen() {
 	memset(&bindaddr, '\0', sizeof(bindaddr));
 	bindaddr.sin_family = AF_INET;
 	bindaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	bindaddr.sin_port = htons(1234);
+	bindaddr.sin_port = htons(atoi(FAPPORT));
 
 	ret = bind(listensd, (struct sockaddr *) &bindaddr, bindaddrlen);
 	syscallerr(ret, "%s: socket() failed", __func__);
