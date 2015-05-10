@@ -164,7 +164,7 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	fsmsg_free(msg);
 
 	msg = fsmsg_from_socket(sd, FAP);
-
+	// XXX validation function
 	if (tid != msg->tid) return -2;
 	if (sid != msg->ids[0]) return -2;
 	if (cid != msg->ids[1]) return -2;
@@ -201,8 +201,9 @@ int fap_accept(struct client_info *info) {
 	int len, ret;
 
 	msg = fsmsg_from_socket(info->sd, FAP);
-	if (!msg) return -1;
-	if (msg->msg_type != FAP_HELLO) return -2;
+	ret = fap_check_response(msg, 0, 0, 0, 0, 0);
+	if (ret < 0) return -1;
+	if (msg->msg_type != FAP_HELLO) return -1;
 	if (fap_validate_sections(msg)<0) {
 		fsmsg_free(msg);
 		return -1;
@@ -358,6 +359,31 @@ int fap_validate_sections(struct fsmsg* msg) {
 	}
 	//always ST_NONEXT as last
 	TESTST(ST_NONEXT);
+
+	return 0;
+}
+
+#define EXPECTTYPE(et) do{if(t!=et) return -7;}while(0)
+int fap_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t cid,uint64_t fsid, enum fap_type request_type) {
+	if (!msg) return -1;
+	if (msg->tid != tid) return -2;
+	if (sid != 0 && msg->ids[0] != sid) return -3;
+	if (fsid != 0 && msg->ids[1] != cid) return -4;
+	if (fsid != 0 && msg->ids[2] != fsid) return -5;
+
+	enum fap_type t;
+	t = msg->msg_type;
+	if (t == FAP_ERROR) return -6;
+
+	if (request_type != 0) {
+		switch (request_type) {
+			case FAP_HELLO:
+				EXPECTTYPE(FAP_HELLO_RESPONSE);
+				break;
+			default:
+				fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);
+		}
+	}
 
 	return 0;
 }

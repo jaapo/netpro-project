@@ -34,6 +34,7 @@ enum fap_responses {
 
 struct client_info {
 	uint64_t id;
+	uint64_t lasttid;
 	int sd;
 	char *user;
 	char *host;
@@ -57,6 +58,7 @@ void fap_send_ok(int sd, uint64_t tid, uint64_t client_id);
 //message functions
 struct fsmsg* fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_id, uint64_t filesystem_id, enum fap_type msg_type);
 int fap_validate_sections(struct fsmsg* msg);
+int fap_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t cid,uint64_t fsid, enum fap_type request_type);
 
 //FAP_H
 #endif

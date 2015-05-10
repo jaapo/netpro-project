@@ -29,6 +29,14 @@
 #define NTOHLTHIS(a) do{(a)=ntohl(a);}while(0)
 #define NTOHLLTHIS(a) do{(a)=ntohll(a);}while(0)
 
+//macro for easy section access
+#define SECI(m,i) m->sections[i]->data.integer
+#define SECS(m,i) m->sections[i]->data.string
+#define SECB(m,i) m->sections[i]->data.binary
+#define SECF(m,i) m->sections[i]->data.fileinfo
+
+#define SECSDUP(m,i) strndup(m->sections[i]->data.string.data, m->sections[i]->data.string.length)
+
 //macro to test section type, ST_NONEXT is not in list
 //used in {fap,dcp,fctp}.c validation functions
 #define TESTST(t)do{\

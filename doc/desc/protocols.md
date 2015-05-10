@@ -348,7 +348,7 @@ User writes commands to the interface to access files. Each command is executed 
 
 ###### list directory contents
 1. client: send **list** **command**
-3. server: send directory server **get info** **message** (**recursion level**=1)
+3. server: send directory server **read** **message** (**recursion level**=1)
 	- doesn't exist error is possible
 4. server: receive directory server response
 6. server: send **file info** **response** to client

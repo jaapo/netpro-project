@@ -150,11 +150,7 @@ void serve_client(struct client_info *info) {
 				return;
 				break;
 			case FAP_COMMAND:
-				if (msg->sections[0]->type != ST_INTEGER) {
-					DEBUGPRINT("%s", "invalid message. expected ST_INTEGER section in FAP_COMMAND.");
-					goto breakfor;
-				}
-				cmd = msg->sections[0]->data.integer;
+				cmd = SECI(msg, 0);
 				switch ((enum fap_commands) cmd) {
 					case FAP_CMD_CREATE:
 						break;
@@ -175,6 +171,7 @@ void serve_client(struct client_info *info) {
 					case FAP_CMD_FIND:
 						break;
 					case FAP_CMD_LIST:
+						list_directory(info, SECI(msg, 1), SECS(msg, 2).data, SECS(msg, 2).length);
 						break;
 				}
 				break;
@@ -186,9 +183,8 @@ void serve_client(struct client_info *info) {
 				DEBUGPRINT("%s", "unexpected message");
 		}
 	}
-breakfor:
-	DEBUGPRINT("%s", "ended up to breakfor");
-
+	
+	DEBUGPRINT("%s reached end", __func__);
 }
 
 int register_client(int clisd, uint64_t cid) {
@@ -197,6 +193,7 @@ int register_client(int clisd, uint64_t cid) {
 	for (i=0;i<MAX_CLIENTS;i++) {
 		if (clients[i].id == 0) {
 			clients[i].id = cid;
+			clients[i].lasttid = 0;
 			clients[i].sd = clisd;
 			clients[i].dataport = FAP_DATAPORT_BASE + i;
 			clicnt++;
@@ -208,4 +205,48 @@ int register_client(int clisd, uint64_t cid) {
 
 uint64_t nextcid() {
 	return ++lastcid;
+}
+
+void list_directory(struct client_info *info, int recurse, char *path, int pathlen) {
+	struct fsmsg *dirmsg, *climsg;
+	union section_data data;
+	int len, ret;
+	uint64_t tid = nexttid();
+	char *buffer;
+
+	dirmsg = dcp_create_msg(tid, fsid, sid, DCP_READ);
+	data.integer = recurse;
+	fsmsg_add_section(dirmsg, ST_INTEGER, &data);
+	data.string.data = path;
+	data.string.length = pathlen;
+	fsmsg_add_section(dirmsg, ST_STRING, &data);
+
+	len = fsmsg_to_buffer(dirmsg, &buffer, DCP);
+
+	ret = write(dssd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, info->sd, buffer, len);
+
+	free(buffer);
+	fsmsg_free(dirmsg);
+
+	dirmsg = fsmsg_from_socket(dssd, DCP);
+	
+	if (dcp_check_response(dirmsg, tid, sid, fsid, DCP_READ) < 0 || dcp_validate_sections(dirmsg) < 0) {
+		fprintf(stderr, "invalid response to DCP_READ\n");
+		return;
+	}
+
+	climsg = fap_create_msg(info->lasttid, sid, info->id, fsid, FAP_FILEINFO);
+	fsmsg_add_section(climsg, ST_INTEGER, &dirmsg->sections[0]->data);
+	
+	for (int i=0;i<SECI(dirmsg, 0);i++) {
+		fsmsg_add_section(climsg, ST_FILEINFO, &dirmsg->sections[i+1]->data);
+	}
+
+	len = fsmsg_to_buffer(climsg, &buffer, FAP);
+	ret = write(info->sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, info->sd, buffer, len);
+
+	fsmsg_free(dirmsg);
+	fsmsg_free(climsg);
 }

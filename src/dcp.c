@@ -139,6 +139,8 @@ int dcp_validate_sections(struct fsmsg* msg) {
 		case DCP_CREATE:
 			break;
 		case DCP_READ:
+			TESTST(ST_INTEGER);
+			TESTST(ST_STRING);
 			break;
 		case DCP_UPDATE:
 			break;
@@ -157,6 +159,10 @@ int dcp_validate_sections(struct fsmsg* msg) {
 		case DCP_DISCONNECT:
 			break;
 		case DCP_FILEINFO:
+			TESTST(ST_INTEGER);
+			for (int j=0;j<s[i-1]->data.integer;j++) {
+				TESTST(ST_FILEINFO);
+			}
 			break;
 		case DCP_ERROR:
 			break;
@@ -174,16 +180,18 @@ int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t f
 	if (sid != 0 && msg->ids[0] != sid) return -3;
 	if (fsid != 0 && msg->ids[1] != fsid) return -4;
 
-	enum dcp_msgtype t;
-	t = msg->msg_type;
-	if (t == DCP_ERROR) return -5;
+	if (request_type != 0) {
+		enum dcp_msgtype t;
+		t = msg->msg_type;
+		if (t == DCP_ERROR) return -5;
 
-	switch (request_type) {
-		case DCP_HELLO:
-			EXPECTTYPE(DCP_HELLO_RESPONSE);
-			break;
-		default:
-			fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);
+		switch (request_type) {
+			case DCP_HELLO:
+				EXPECTTYPE(DCP_HELLO_RESPONSE);
+				break;
+			default:
+				fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);
+		}
 	}
 
 	return 0;

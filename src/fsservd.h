@@ -8,3 +8,4 @@ void serve_client(struct client_info *info);
 int register_client(int clisd, uint64_t cid);
 uint64_t nextcid();
 
+void list_directory(struct client_info *info, int recurse, char *path, int pathlen);
