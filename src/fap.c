@@ -75,9 +75,12 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	fsmsg_free(msg);
 
 	msg = fsmsg_from_socket(sd, FAP);
-	if (!msg) fprintf(stderr, "fsmsg_from_socket return NULL\n");
-	if (msg->msg_type != FAP_HELLO_RESPONSE) fprintf(stderr, "expected FAP_HELLO_RESPONSE (%d), received %d\n", FAP_HELLO_RESPONSE, msg->msg_type);
-	if (msg->tid != tid) fprintf(stderr, "received response with invalid tid\n");
+	ret = fap_check_response(msg, tid, 0, 0, 0, FAP_HELLO);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response to FAP_HELLO \n");
+		fsmsg_free(msg);
+		return -1;
+	}
 	
 	sid = msg->ids[1];
 	*cid = msg->ids[2];
@@ -90,8 +93,8 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 		return -1;
 	}
 
-	*servername = strndup(msg->sections[0]->data.string.data, msg->sections[0]->data.string.length);
-	*dataport = msg->sections[1]->data.integer;
+	*servername = SECSDUP(msg, 0);
+	*dataport = SECI(msg, 1);
 
 	fsmsg_free(msg);
 	return sd;
@@ -209,8 +212,12 @@ int fap_accept(struct client_info *info) {
 		return -1;
 	}
 
-	info->host = strndup(msg->sections[0]->data.string.data, msg->sections[0]->data.string.length);
-	info->user = strndup(msg->sections[1]->data.string.data, msg->sections[1]->data.string.length);
+	info->lasttid = msg->tid;
+
+	info->host = SECSDUP(msg, 0);
+		//strndup(msg->sections[0]->data.string.data, msg->sections[0]->data.string.length);
+	info->user = SECSDUP(msg, 1);
+//	info->user = strndup(msg->sections[1]->data.string.data, msg->sections[1]->data.string.length);
 
 	respmsg = fap_create_msg(msg->tid, sid, info->id, fsid, FAP_HELLO_RESPONSE);
 
@@ -364,9 +371,9 @@ int fap_validate_sections(struct fsmsg* msg) {
 }
 
 #define EXPECTTYPE(et) do{if(t!=et) return -7;}while(0)
-int fap_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t cid,uint64_t fsid, enum fap_type request_type) {
+int fap_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t cid, uint64_t fsid, enum fap_type request_type) {
 	if (!msg) return -1;
-	if (msg->tid != tid) return -2;
+	if (tid != 0 && msg->tid != tid) return -2;
 	if (sid != 0 && msg->ids[0] != sid) return -3;
 	if (fsid != 0 && msg->ids[1] != cid) return -4;
 	if (fsid != 0 && msg->ids[2] != fsid) return -5;
