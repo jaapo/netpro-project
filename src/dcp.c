@@ -74,7 +74,7 @@ int dcp_validate_sections(struct fsmsg* msg) {
 
 	switch ((enum dcp_msgtype) msg->msg_type) {
 		case DCP_HELLO:
-			TESTST(string);
+			TESTST(ST_STRING);
 			TESTST(integer);
 			TESTST(integer);
 			TESTST(integer);

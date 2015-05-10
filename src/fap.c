@@ -27,7 +27,7 @@ void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *
 
 	data.string.length = strlen(errstr);
 	data.string.data = errstr;
-	fsmsg_add_section(msg, string, &data);
+	fsmsg_add_section(msg, ST_STRING, &data);
 
 	fsmsg_add_section(msg, nonext, NULL);
 
@@ -63,12 +63,12 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	ret = gethostname(data.string.data, HOST_NAME_MAX);
 	syscallerr(ret, "error getting name of local host with gethostbyname()");
 	data.string.length = strlen(data.string.data);
-	fsmsg_add_section(msg, string, &data);
+	fsmsg_add_section(msg, ST_STRING, &data);
 	free(data.string.data);
 
 	data.string.data = getlogin();
 	data.string.length = strlen(data.string.data);
-	fsmsg_add_section(msg, string, &data);
+	fsmsg_add_section(msg, ST_STRING, &data);
 
 	fsmsg_add_section(msg, nonext, NULL);
 
@@ -157,7 +157,7 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 
 	data.string.length = strlen(current_dir);
 	data.string.data = current_dir;
-	fsmsg_add_section(msg, string, &data);
+	fsmsg_add_section(msg, ST_STRING, &data);
 
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 
@@ -223,7 +223,7 @@ int fap_accept(struct client_info *info) {
 	ret = gethostname(data.string.data, HOST_NAME_MAX);
 	syscallerr(ret, "error getting name of local host with gethostbyname()");
 	data.string.length = strlen(data.string.data);
-	fsmsg_add_section(respmsg, string, &data);
+	fsmsg_add_section(respmsg, ST_STRING, &data);
 
 	data.integer = info->dataport;
 	fsmsg_add_section(respmsg, integer, &data);
@@ -278,11 +278,11 @@ int fap_validate_sections(struct fsmsg* msg) {
 
 	switch ((enum fap_type) msg->msg_type) {
 		case FAP_HELLO:
-			TESTST(string);
-			TESTST(string);
+			TESTST(ST_STRING);
+			TESTST(ST_STRING);
 			break;
 		case FAP_HELLO_RESPONSE:
-			TESTST(string);
+			TESTST(ST_STRING);
 			TESTST(integer);
 			break;
 		case FAP_QUIT:
@@ -292,39 +292,39 @@ int fap_validate_sections(struct fsmsg* msg) {
 			cmd = s[0]->data.integer;
 			switch ((enum fap_commands) cmd) {
 				case FAP_CMD_CREATE:
-					TESTST(string);
+					TESTST(ST_STRING);
 					TESTST(integer);
 					break;
 				case FAP_CMD_OPEN:
 				case FAP_CMD_CLOSE:
 				case FAP_CMD_STAT:
-					TESTST(string);
+					TESTST(ST_STRING);
 					break;
 				case FAP_CMD_READ:
-					TESTST(string);
+					TESTST(ST_STRING);
 					TESTST(integer);
 					TESTST(integer);
 					break;
 				case FAP_CMD_WRITE:
-					TESTST(string);
+					TESTST(ST_STRING);
 					TESTST(integer);
 					break;
 				case FAP_CMD_DELETE:
-					TESTST(string);
+					TESTST(ST_STRING);
 					TESTST(integer);
 					break;
 				case FAP_CMD_COPY:
-					TESTST(string);
-					TESTST(string);
+					TESTST(ST_STRING);
+					TESTST(ST_STRING);
 					TESTST(integer);
 					break;
 				case FAP_CMD_FIND:
-					TESTST(string);
-					TESTST(string);
+					TESTST(ST_STRING);
+					TESTST(ST_STRING);
 					break;
 				case FAP_CMD_LIST:
 					TESTST(integer);
-					TESTST(string);
+					TESTST(ST_STRING);
 					break;
 				default:
 					DEBUGPRINT("unexpected command type (%d)", cmd);
@@ -354,7 +354,7 @@ int fap_validate_sections(struct fsmsg* msg) {
 			break;
 		case FAP_ERROR:
 			TESTST(integer);
-			TESTST(string);
+			TESTST(ST_STRING);
 			break;
 		default:
 			DEBUGPRINT("unexpected message type (%d)", msg->msg_type);

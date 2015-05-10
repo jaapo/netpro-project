@@ -68,12 +68,12 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protoc
 				tmpint32 = htonl(section->data.integer);
 				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpint32, sizeof(tmpint32));
 				break;
-			case string:
+			case ST_STRING:
 				tmpuint32 = htonl(section->data.string.length);
 				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				len += bufferadd(&buf, &bufsize, &data, (void *)section->data.string.data, section->data.string.length);
 				break;
-			case binary:
+			case ST_BINARY:
 				tmpuint32 = htonl(section->data.binary.length);
 				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				len += bufferadd(&buf, &bufsize, &data, (void *)section->data.binary.data, section->data.binary.length);
@@ -176,7 +176,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 				TRY(read(sd, &s->data.integer, sizeof(s->data.integer)));
 				NTOHLTHIS(s->data.integer);
 				break;
-			case string:
+			case ST_STRING:
 				//read length
 				TRY(read(sd, &s->data.string.length, sizeof(s->data.string.length)));
 				NTOHLTHIS(s->data.string.length);
@@ -185,7 +185,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 				s->data.string.data = malloc(s->data.string.length);
 				TRY(read(sd, s->data.string.data, s->data.string.length));
 				break;
-			case binary:
+			case ST_BINARY:
 				//read length
 				TRY(read(sd, &s->data.binary.length, sizeof(s->data.binary.length)));
 				NTOHLTHIS(s->data.binary.length);
@@ -274,12 +274,12 @@ void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *dat
 		case integer:
 			sec->data.integer = data->integer;
 			break;
-		case string:
+		case ST_STRING:
 			sec->data.string.length = data->string.length;
 			sec->data.string.data = malloc(data->string.length);
 			memcpy(sec->data.string.data, data->string.data, data->string.length);
 			break;
-		case binary:
+		case ST_BINARY:
 			sec->data.binary.length = data->binary.length;
 			sec->data.binary.data = malloc(data->binary.length);
 			memcpy(sec->data.binary.data, data->binary.data, data->binary.length);
@@ -315,10 +315,10 @@ void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *dat
 }
 void fsmsg_free_section(struct msg_section *s) {
 	switch (s->type) {
-		case binary:
+		case ST_BINARY:
 			FREEIF(s->data.binary.data);
 			break;
-		case string:
+		case ST_STRING:
 			FREEIF(s->data.string.data);
 			break;
 		case fileinfo:
@@ -360,11 +360,11 @@ struct msg_section *fsmsg_section_copy(struct msg_section *s) {
 	memcpy(new, s, sizeof(struct msg_section));
 	
 	switch (new->type) {
-		case string:
+		case ST_STRING:
 			new->data.string.data = malloc(new->data.string.length);
 			memcpy(new->data.string.data, s->data.string.data, new->data.string.length);
 			break;
-		case binary:
+		case ST_BINARY:
 			new->data.binary.data = malloc(new->data.binary.length);
 			memcpy(new->data.binary.data, s->data.binary.data, new->data.binary.length);
 			break;
