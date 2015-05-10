@@ -83,21 +83,26 @@ int readline(char *buffer, int fp, int maxline) {
 }
 
 static struct confparam *last_param, *first_param;
+static int paramcnt = 0;
+
 void add_config_param(const char *name, char **val) {
 	struct confparam *new = malloc(sizeof(struct confparam));
 	new->name = name;
 	new->value = val;
 	new->next = NULL;
+
 	if (last_param)
 		last_param->next = new;
 	else
 		first_param = new;
+	
 	last_param = new;
+	paramcnt++;
 }
 
 int read_config(const char *filename) {
 	char linebuffer[MAX_LINE];
-	int i;
+	int i = 0;
 	int fp = open(filename, O_RDONLY);
 	syscallerr(fp, "open config file %s", filename);
 
@@ -113,8 +118,8 @@ int read_config(const char *filename) {
 			if (!strcmp(cur->name, t)) {
 				i++;
 				t = strtok(NULL, "\n");
-				*cur->value = malloc(strlen(t));
-				strcpy(*cur->value, t);
+				*cur->value = strdup(t);
+//				strcpy(*cur->value, t);
 				break;
 			}
 			cur = cur->next;
@@ -122,6 +127,10 @@ int read_config(const char *filename) {
 	}
 
 	close(fp);
+	if (i != paramcnt) {
+		fprintf(stderr, "config file error (%s), %d parmeters found, expected %d\n", filename, i, paramcnt);
+		exit(1);
+	}
 	return i;
 }
 
@@ -145,3 +154,13 @@ struct addrinfo *get_server_address(char *hostname, char *servname, FILE *logfil
 
 	return res;
 }
+
+char *read_args(int argc, char* argv[], char *defaultval) {
+	for (int i=1;i<argc-1;i++) {
+		if (!strcmp(argv[i], "-conf")) {
+			return argv[i+1];
+		}
+	}
+	return defaultval;
+}
+

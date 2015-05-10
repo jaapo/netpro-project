@@ -1,5 +1,3 @@
-#include "fap.h"
-#include "util.h"
 
 void print_hello();
 void start_connect();

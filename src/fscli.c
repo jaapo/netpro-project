@@ -1,4 +1,7 @@
 #include "fscli.h"
+#include "fap.h"
+#include "util.h"
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +28,8 @@ static FILE *logfile;
 struct addrinfo *serv_ai;
 static int fapsd;
 static uint64_t cid;
+uint64_t fsid;
+uint64_t sid;
 
 static int32_t dataport;
 
@@ -86,7 +91,6 @@ void start_connect() {
 	syscallerr(fapsd, "fap-connection failed %s", server);
 }
 
-#define MIN(a,b) ((a)<(b)?(a):(b))
 #define CHECKCMD_ARGS(cmdstr, fun) \
 	if (!strncmp(cmdstr " ", command, MIN(len, sizeof(cmdstr " ") - 1))) {\
 		fun(command + sizeof(cmdstr " ") - 1, len - sizeof(cmdstr " ") - 1);\

@@ -3,12 +3,15 @@
 
 #include <stdio.h>
 #include <signal.h>
+#include <syslog.h>
 
 #define NOT_IMPLEMENTED(a,b) fprintf(stderr, "not implemented!\n")
 
 #define CLRRED "\033[31m"
 #define CLRGRN "\033[32m"
 #define CLREND "\033[0m"
+
+#define MIN(a,b) ((a)<(b)?(a):(b))
 
 #ifdef NDEBUG
 #define DEBUGPRINT(a...)
@@ -35,5 +38,6 @@ void logwrite(FILE *logfile, char *fmtstr, ...);
 
 struct addrinfo *get_server_address(char *hostname, char *servname, FILE *logfile);
 
+char *read_args(int argc, char* argv[], char *defaultval);
 //UTIL_H
 #endif

@@ -3,8 +3,10 @@
 #include "dcp.h"
 #include "fsservd.h"
 #include "util.h"
+#include "netutil.h"
 
 #include <unistd.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -25,44 +27,32 @@ static int listensd;
 
 static struct addrinfo *dserv_ai;
 static int dssd;
-static uint64_t sid;
+
+uint64_t sid;
+uint64_t fsid;
+
 static uint64_t lastcid = 1;
 static int clicnt = 0;
 
 static struct client_info clients[MAX_CLIENTS];
 
 int main(int argc, char* argv[], char* envp[]) {
-	int ret;
-	read_args(argc, argv);
+	conffile = read_args(argc, argv, "/etc/dfs_fileserv.conf");
 
 	add_config_param("directory_server", &dirserver);
 	add_config_param("data_location", &dataloc);
 	add_config_param("maximum_space", &maxspace);
 
-	ret = read_config(conffile);
-	if (ret != 3) {
-		fprintf(stderr, "config file error (%s), %d parmeters found, expected 3\n", conffile, ret);
-		exit(1);
-	}
+	read_config(conffile);
 	
 	go_daemon();
 	dserv_ai = get_server_address(dirserver, DCPPORT, NULL);
 	connect_dirserv();
 
-	start_listen();
+	listensd = start_listen(atoi(FAPPORT));
 	do_fap_server();
 
 	return 0;
-}
-
-void read_args(int argc, char* argv[]) {
-	for (int i=1;i<argc-1;i++) {
-		if (!strcmp(argv[i], "-conf")) {
-			conffile = argv[i+1];
-			return;
-		}
-	}
-	conffile = "/etc/dfs_fileserv.conf";
 }
 
 void go_daemon() {
@@ -97,31 +87,6 @@ void connect_dirserv() {
 	}
 
 	//syscallerr(dssd, "dcp-connection failed %s", dirserver);	
-}
-
-void start_listen() {
-	int ret, one = 1;
-	struct sockaddr_in bindaddr;
-	socklen_t bindaddrlen = sizeof(bindaddr);
-
-	listensd = socket(AF_INET, SOCK_STREAM, 0);
-	syscallerr(listensd, "%s: socket() failed", __func__);
-
-	ret = setsockopt(listensd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-	syscallerr(ret, "%s: setsockopt() failed", __func__);
-
-
-	//TODO: use getaddrinfo for ipv6 support
-	memset(&bindaddr, '\0', sizeof(bindaddr));
-	bindaddr.sin_family = AF_INET;
-	bindaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	bindaddr.sin_port = htons(atoi(FAPPORT));
-
-	ret = bind(listensd, (struct sockaddr *) &bindaddr, bindaddrlen);
-	syscallerr(ret, "%s: socket() failed", __func__);
-
-	ret = listen(listensd, 5);
-	syscallerr(ret, "%s: listen() failed", __func__);
 }
 
 //TODO: threads

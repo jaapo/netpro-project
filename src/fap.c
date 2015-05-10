@@ -7,8 +7,8 @@
 #include <netdb.h>
 #include <unistd.h>
 
-static uint64_t fsid;
-static uint64_t sid;
+extern uint64_t fsid;
+extern uint64_t sid;
 
 uint64_t nexttid() {
 	return random();
@@ -268,14 +268,6 @@ struct fsmsg *fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_i
 
 	return msg;
 }
-
-//macro to test section type, nonext is not in list
-#define TESTST(t)do{\
-	if (!((s[i] == NULL && t == nonext) || s[i]->type == t)) {\
-		return -1;\
-	}\
-	i++;\
-}while(0)
 
 int fap_validate_sections(struct fsmsg* msg) {
 	struct msg_section **s;
