@@ -12,10 +12,12 @@
 #define TYPEFILE 1
 #define TYPEDIR 2
 
-#define FAPPORT "1234"
-#define DCPPORT "1235"
-#define FCTPCTRLPORT "1236"
-#define FCTPDATAPORT "1237"
+#define FAPPORT 1234
+#define FAPPORTSTR "1234"
+#define DCPPORT 1235
+#define DCPPORTSTR "1235"
+#define FCTPCTRLPORT 1236
+#define FCTPDATAPORT 1237
 
 #define FAP_DATAPORT_BASE 40100
 
@@ -97,6 +99,7 @@ struct fsmsg {
 };
 
 
+uint64_t nexttid();
 int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_read(int sockd);

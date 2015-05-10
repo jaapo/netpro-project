@@ -10,10 +10,6 @@
 extern uint64_t fsid;
 extern uint64_t sid;
 
-uint64_t nexttid() {
-	return random();
-}
-
 void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *errstr) {
 	struct fsmsg *msg;
 	union section_data data;

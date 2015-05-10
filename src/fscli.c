@@ -47,7 +47,7 @@ int main(int argc, char* argv[], char* envp[]) {
 	logfile = logopen(logpath);
 	print_hello();
 
-	serv_ai = get_server_address(server, FAPPORT, logfile);
+	serv_ai = get_server_address(server, FAPPORTSTR, logfile);
 	start_connect();
 
 	printf("connected to %s\n", servername);

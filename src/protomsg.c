@@ -4,6 +4,10 @@
 
 #define FREEIF(x) do{if(x)free(x);}while(0)
 
+uint64_t nexttid() {
+	return random();
+}
+
 int bufferadd(char **buffer, int *buflen, char **ptr, const void *data, int datalen) {
 	int curlen = *ptr-*buffer;
 

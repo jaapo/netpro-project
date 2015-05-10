@@ -11,9 +11,61 @@
 
 extern uint64_t fsid;
 
-int dcp_open(struct addrinfo *ai, uint64_t *server_id) {
-	fprintf(stderr, "dcp_open() not implemented yet\n");
-	return -1;
+int dcp_open(struct addrinfo *fsrv_ai, uint64_t *server_id, int32_t capacity, int32_t usage, int32_t filecnt) {
+	int ret, sd, len;
+	sd = socket(fsrv_ai->ai_family, fsrv_ai->ai_socktype, 0);
+	ret = connect(sd, fsrv_ai->ai_addr, fsrv_ai->ai_addrlen);
+
+	if (ret<0) {
+		close(sd);
+		return ret;
+	}
+	struct fsmsg *msg;
+	uint64_t tid = nexttid();
+	msg = dcp_create_msg(tid, 0, 0, DCP_HELLO);
+
+	union section_data data;
+	data.string.data = malloc(HOST_NAME_MAX);
+	ret = gethostname(data.string.data, HOST_NAME_MAX);
+	syscallerr(ret, "error getting name of local host with gethostbyname()");
+	data.string.length = strlen(data.string.data);
+	fsmsg_add_section(msg, ST_STRING, &data);
+	free(data.string.data);
+
+	data.integer = capacity;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+	data.integer = usage;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+	data.integer = filecnt;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+
+	char *buffer;
+	len = fsmsg_to_buffer(msg, &buffer, DCP);
+	ret = write(sd, buffer, len);
+	syscallerr(ret, "%s:network error: write() failed", __func__);
+	fsmsg_free(msg);
+
+	msg = fsmsg_from_socket(sd, DCP);
+	ret = dcp_check_response(msg, tid, 0, 0, DCP_HELLO);
+	if (ret < 0) {
+		dcp_send_error(sd, tid, *server_id, ERR_MSG, "response type or some id was wrong");
+		fsmsg_free(msg);
+		return -1;
+	}
+	
+	*server_id = msg->ids[0];
+	fsid = msg->ids[1];
+
+	ret = dcp_validate_sections(msg);
+	if (ret < 0) {
+		dcp_send_error(sd, tid, *server_id, ERR_MSG, "section validation error");
+		fsmsg_free(msg);
+		return -1;
+	}
+
+	return sd;
 }
 
 int dcp_accept(struct fileserv_info *info) {
@@ -113,4 +165,52 @@ int dcp_validate_sections(struct fsmsg* msg) {
 	//ST_NONEXT always last
 	TESTST(ST_NONEXT);
 	return 0;
+}
+
+#define EXPECTTYPE(et) do{if(t!=et) return -6;}while(0)
+int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t fsid, enum dcp_msgtype request_type) {
+	if (!msg) return -1;
+	if (msg->tid != tid) return -2;
+	if (sid != 0 && msg->ids[0] != sid) return -3;
+	if (fsid != 0 && msg->ids[1] != fsid) return -4;
+
+	enum dcp_msgtype t;
+	t = msg->msg_type;
+	if (t == DCP_ERROR) return -5;
+
+	switch (request_type) {
+		case DCP_HELLO:
+			EXPECTTYPE(DCP_HELLO_RESPONSE);
+			break;
+		default:
+			fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);
+	}
+
+	return 0;
+}
+
+void dcp_send_error(int sd, uint64_t tid, uint64_t sid, int errorn, char *errstr) {
+	struct fsmsg *msg;
+	union section_data data;
+	char *buffer;
+	int len, ret;
+	
+	msg = dcp_create_msg(tid, fsid, sid, DCP_ERROR);
+
+	data.integer = errorn;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+
+	data.string.length = strlen(errstr);
+	data.string.data = errstr;
+	fsmsg_add_section(msg, ST_STRING, &data);
+
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+
+	len = fsmsg_to_buffer(msg, &buffer, DCP);
+
+	ret = write(sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
+
+	free(buffer);
+	fsmsg_free(msg);
 }

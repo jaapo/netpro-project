@@ -40,23 +40,21 @@ struct client_info {
 	int dataport;
 };
 
-
-uint64_t nexttid();
-
+//common functions
 void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *errstr);
 
-//client related
+//client functions
 int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, int32_t *dataport);
 uint64_t fap_client_quit(int sd, uint64_t cid);
 int fap_client_wait_ok(int sd, uint64_t tid);
 int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files);
 
-//server related
+//server functions
 void fap_init_server();
 int fap_accept(struct client_info *info);
 void fap_send_ok(int sd, uint64_t tid, uint64_t client_id);
 
-//message related
+//message functions
 struct fsmsg* fap_create_msg(uint64_t tid, uint64_t server_id, uint64_t client_id, uint64_t filesystem_id, enum fap_type msg_type);
 int fap_validate_sections(struct fsmsg* msg);
 

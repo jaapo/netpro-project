@@ -214,7 +214,7 @@ Message sections and numbers:
 
 	Sections: server name (string), server maximum capacity in bytes (integer), server current disk usage in bytes (integer), server file count (integer)
 
-	File system ID is 0 in this message
+	File system ID and Server ID are 0 in this message
 
 - hello response (2)
 

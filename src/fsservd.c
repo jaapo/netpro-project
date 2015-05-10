@@ -46,10 +46,10 @@ int main(int argc, char* argv[], char* envp[]) {
 	read_config(conffile);
 	
 	go_daemon();
-	dserv_ai = get_server_address(dirserver, DCPPORT, NULL);
+	dserv_ai = get_server_address(dirserver, DCPPORTSTR, NULL);
 	connect_dirserv();
 
-	listensd = start_listen(atoi(FAPPORT));
+	listensd = start_listen(FAPPORT);
 	do_fap_server();
 
 	return 0;
@@ -78,7 +78,8 @@ void connect_dirserv() {
 		printf("connecting to directory server %s (%s:%s)...\n", dirserver, servaddr, servport);
 		SYSLOG(SYSLOGPRIO, "connecting to directory server %s (%s:%s)", dirserver, servaddr, servport);
 		
-		dssd = dcp_open(ai, &sid);
+		//XXX initial values
+		dssd = dcp_open(ai, &sid, atoi(maxspace), 0, 0);
 		if (dssd >= 0) break;
 		printf("connection failed\n");
 		SYSLOG(SYSLOGPRIO, "directory server connection to %s failed", dirserver);
@@ -86,7 +87,7 @@ void connect_dirserv() {
 		ai = ai->ai_next;
 	}
 
-	//syscallerr(dssd, "dcp-connection failed %s", dirserver);	
+	syscallerr(dssd, "dcp-connection failed %s", dirserver);	
 }
 
 //TODO: threads

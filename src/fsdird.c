@@ -25,7 +25,8 @@ static uint64_t lastsid = 0;
 
 uint64_t fsid;
 
-struct fileserv_info fileservers[MAX_FSERVERS];
+static struct fileserv_info fileservers[MAX_FSERVERS];
+static int fsrvcnt = 0;
 
 int main(int argc, char* argv[], char* envp[]) {
 	char *tmp;
@@ -62,7 +63,7 @@ void do_dcp_server() {
 		if (fsrvsd < 0 && errno == EINTR) continue;
 		syscallerr(fsrvsd, "%s: accept() failed", __func__);
 		
-		ret = register_fserv(fsrvsd, server_id);
+		ret = register_fsrv(fsrvsd, server_id);
 		if (ret < 0) {
 			fprintf(stderr, "can't accept more file servers\n");
 			close(fsrvsd);
@@ -82,9 +83,19 @@ void do_dcp_server() {
 	}
 }
 
-int register_fserv(int fservsd, uint64_t sid) {
-
-	return 0;
+//XXX other also
+int register_fsrv(int fsrvsd, uint64_t sid) {
+	int i;
+	if (sid == 0 || fsrvcnt > MAX_FSERVERS) return -1;
+	for (i=0;i<MAX_FSERVERS;i++) {
+		if (fileservers[i].id == 0) {
+			fileservers[i].id = sid;
+			fileservers[i].sd = fsrvsd;
+			fsrvcnt++;
+			break;
+		}
+	}
+	return i;
 }
 
 void serve_fileserver(struct fileserv_info *info) {
