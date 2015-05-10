@@ -27,17 +27,17 @@
 #define NTOHLTHIS(a) do{(a)=ntohl(a);}while(0)
 #define NTOHLLTHIS(a) do{(a)=ntohll(a);}while(0)
 
-//macro to test section type, nonext is not in list
+//macro to test section type, ST_NONEXT is not in list
 //used in {fap,dcp,fctp}.c validation functions
 #define TESTST(t)do{\
-	if (!((s[i] == NULL && t == nonext) || s[i]->type == t)) {\
+	if (!((s[i] == NULL && t == ST_NONEXT) || s[i]->type == t)) {\
 		return -1;\
 	}\
 	i++;\
 }while(0)
 
 enum section_type {
-	nonext = 0,
+	ST_NONEXT = 0,
 	ST_INTEGER = 1,
 	ST_STRING = 2,
 	ST_BINARY = 3,

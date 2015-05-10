@@ -41,7 +41,7 @@ int dcp_accept(struct fileserv_info *info) {
 	//refresh bit XXX
 	data.integer = 1;
 	fsmsg_add_section(respmsg, ST_INTEGER, &data);
-	fsmsg_add_section(respmsg, nonext, NULL);
+	fsmsg_add_section(respmsg, ST_NONEXT, NULL);
 	len = fsmsg_to_buffer(respmsg, &buffer, DCP);
 
 	ret = write(info->sd, buffer, len);
@@ -110,7 +110,7 @@ int dcp_validate_sections(struct fsmsg* msg) {
 			break;
 	}
 
-	//nonext always last
-	TESTST(nonext);
+	//ST_NONEXT always last
+	TESTST(ST_NONEXT);
 	return 0;
 }

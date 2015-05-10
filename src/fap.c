@@ -29,7 +29,7 @@ void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *
 	data.string.data = errstr;
 	fsmsg_add_section(msg, ST_STRING, &data);
 
-	fsmsg_add_section(msg, nonext, NULL);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 
@@ -70,7 +70,7 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	data.string.length = strlen(data.string.data);
 	fsmsg_add_section(msg, ST_STRING, &data);
 
-	fsmsg_add_section(msg, nonext, NULL);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
 	char *buffer;
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
@@ -108,7 +108,7 @@ uint64_t fap_client_quit(int sd, uint64_t cid) {
 	char *buffer;
 
 	msg = fap_create_msg(tid, sid, cid, fsid, FAP_QUIT);
-	fsmsg_add_section(msg, nonext, NULL);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 
@@ -192,7 +192,7 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 		s = sects[i+2];
 	}
 
-	if (s->type != nonext) {
+	if (s->type != ST_NONEXT) {
 		printf("unexpected sections!\n");
 	}
 
@@ -227,7 +227,7 @@ int fap_accept(struct client_info *info) {
 
 	data.integer = info->dataport;
 	fsmsg_add_section(respmsg, ST_INTEGER, &data);
-	fsmsg_add_section(respmsg, nonext, NULL);
+	fsmsg_add_section(respmsg, ST_NONEXT, NULL);
 	len = fsmsg_to_buffer(respmsg, &buffer, FAP);
 
 	ret = write(info->sd, buffer, len);
@@ -246,7 +246,7 @@ void fap_send_ok(int sd, uint64_t tid, uint64_t client_id) {
 	int len, ret;
 	
 	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_OK);
-	fsmsg_add_section(msg, nonext, NULL);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
 	len = fsmsg_to_buffer(msg, &buffer, FAP);
 
 	ret = write(sd, buffer, len);
@@ -360,8 +360,8 @@ int fap_validate_sections(struct fsmsg* msg) {
 			DEBUGPRINT("unexpected message type (%d)", msg->msg_type);
 			return -1;
 	}
-	//always nonext as last
-	TESTST(nonext);
+	//always ST_NONEXT as last
+	TESTST(ST_NONEXT);
 
 	return 0;
 }

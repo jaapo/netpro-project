@@ -97,7 +97,7 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protoc
 				tmpuint32 = htonl(section->data.fileinfo.replicas);
 				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				break;
-			case nonext:
+			case ST_NONEXT:
 				break;
 			default:
 				break;
@@ -160,7 +160,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 	while(1) {
 		TRY(read(sd, &sectype, sizeof(sectype)));
 		NTOHSTHIS(sectype);
-		if (sectype == nonext) break;
+		if (sectype == ST_NONEXT) break;
 
 		sectioncount++;
 		msg->sections = realloc(msg->sections, (sectioncount+1)*sizeof(struct msg_section*));
@@ -308,7 +308,7 @@ void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *dat
 			//replica count
 			fi->replicas = data->fileinfo.replicas;
 			break;
-		case nonext:
+		case ST_NONEXT:
 			//no need to copy data
 			break;
 	}
