@@ -41,7 +41,7 @@ enum section_type {
 	ST_INTEGER = 1,
 	ST_STRING = 2,
 	ST_BINARY = 3,
-	fileinfo = 4
+	ST_FILEINFO = 4
 };
 
 enum fsmsg_protocol {

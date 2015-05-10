@@ -185,7 +185,7 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 
 	struct msg_section *s = sects[2];
 	int i = 0;
-	while (s->type==fileinfo) {
+	while (s->type==ST_FILEINFO) {
 		*files = realloc(*files, (i+1)*sizeof(struct fileinfo_sect));
 		fsmsg_fileinfo_copy(files[i], &s->data.fileinfo);
 		i++;
@@ -341,7 +341,7 @@ int fap_validate_sections(struct fsmsg* msg) {
 					TESTST(ST_INTEGER);
 					count = s[i-1]->data.integer;
 					for (int j=0;j<count;j++) {
-						TESTST(fileinfo);
+						TESTST(ST_FILEINFO);
 					}
 					break;
 				case FAP_DATAOUT:

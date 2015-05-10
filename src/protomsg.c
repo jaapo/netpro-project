@@ -78,7 +78,7 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protoc
 				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint32, sizeof(tmpuint32));
 				len += bufferadd(&buf, &bufsize, &data, (void *)section->data.binary.data, section->data.binary.length);
 				break;
-			case fileinfo:
+			case ST_FILEINFO:
 				tmpuint8 = section->data.fileinfo.type;
 				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint8, sizeof(tmpuint8));
 				
@@ -194,7 +194,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 				s->data.binary.data = malloc(s->data.binary.length);
 				TRY(read(sd, s->data.binary.data, s->data.binary.length));
 				break;
-			case fileinfo:
+			case ST_FILEINFO:
 				fi = &s->data.fileinfo;
 				//file type byte
 				TRY(read(sd, &fi->type, sizeof(fi->type)));
@@ -284,7 +284,7 @@ void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *dat
 			sec->data.binary.data = malloc(data->binary.length);
 			memcpy(sec->data.binary.data, data->binary.data, data->binary.length);
 			break;
-		case fileinfo:
+		case ST_FILEINFO:
 			fi = &sec->data.fileinfo;
 			//file type byte
 			fi->type = data->fileinfo.type;
@@ -321,7 +321,7 @@ void fsmsg_free_section(struct msg_section *s) {
 		case ST_STRING:
 			FREEIF(s->data.string.data);
 			break;
-		case fileinfo:
+		case ST_FILEINFO:
 			FREEIF(s->data.fileinfo.path);
 			FREEIF(s->data.fileinfo.username);
 	}
@@ -368,7 +368,7 @@ struct msg_section *fsmsg_section_copy(struct msg_section *s) {
 			new->data.binary.data = malloc(new->data.binary.length);
 			memcpy(new->data.binary.data, s->data.binary.data, new->data.binary.length);
 			break;
-		case fileinfo:
+		case ST_FILEINFO:
 			fsmsg_fileinfo_copy(&new->data.fileinfo, &s->data.fileinfo);
 			break;
 	}
