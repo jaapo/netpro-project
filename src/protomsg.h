@@ -110,7 +110,8 @@ struct fsmsg {
 uint64_t nexttid();
 int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protocol);
 struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol);
-struct fsmsg* fsmsg_read(int sockd);
+int fsmsg_send(int sd, struct fsmsg* msg, enum fsmsg_protocol protocol);
+
 struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol);
 void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *data);
 void fsmsg_free_section(struct msg_section *s);

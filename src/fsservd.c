@@ -132,11 +132,14 @@ void serve_client(struct client_info *info) {
 
 	for(;;) {
 		msg = fsmsg_from_socket(info->sd, FAP);
+		if (!msg) return;
 		ret = fap_validate_sections(msg);
 		if (ret < 0) {
 			fap_send_error(info->sd, msg->tid, info->id, ERR_MSG, "");
 			continue;
 		}
+
+		info->lasttid = msg->tid;
 
 		DEBUGPRINT("received message %hd from client %ld, socket %d", msg->msg_type, info->id, info->sd);
 
@@ -210,9 +213,8 @@ uint64_t nextcid() {
 void list_directory(struct client_info *info, int recurse, char *path, int pathlen) {
 	struct fsmsg *dirmsg, *climsg;
 	union section_data data;
-	int len, ret;
+	int ret;
 	uint64_t tid = nexttid();
-	char *buffer;
 
 	dirmsg = dcp_create_msg(tid, fsid, sid, DCP_READ);
 	data.integer = recurse;
@@ -220,13 +222,9 @@ void list_directory(struct client_info *info, int recurse, char *path, int pathl
 	data.string.data = path;
 	data.string.length = pathlen;
 	fsmsg_add_section(dirmsg, ST_STRING, &data);
+	fsmsg_add_section(dirmsg, ST_NONEXT, NULL);
 
-	len = fsmsg_to_buffer(dirmsg, &buffer, DCP);
-
-	ret = write(dssd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, info->sd, buffer, len);
-
-	free(buffer);
+	fsmsg_send(dssd, dirmsg, DCP);
 	fsmsg_free(dirmsg);
 
 	dirmsg = fsmsg_from_socket(dssd, DCP);
@@ -243,10 +241,11 @@ void list_directory(struct client_info *info, int recurse, char *path, int pathl
 		fsmsg_add_section(climsg, ST_FILEINFO, &dirmsg->sections[i+1]->data);
 	}
 
-	len = fsmsg_to_buffer(climsg, &buffer, FAP);
-	ret = write(info->sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, info->sd, buffer, len);
-
+	fsmsg_add_section(climsg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(info->sd, climsg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
+	
 	fsmsg_free(dirmsg);
 	fsmsg_free(climsg);
 }

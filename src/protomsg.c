@@ -236,6 +236,19 @@ fail:
 
 #undef TRY
 
+int fsmsg_send(int sd, struct fsmsg* msg, enum fsmsg_protocol protocol) {
+	int len, ret;
+	char *buffer;
+	DEBUGPRINT("sending msg, type: %d", msg->msg_type);
+	len = fsmsg_to_buffer(msg, &buffer, protocol);
+
+	ret = write(sd, buffer, len);
+	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, sd, buffer, len);
+
+	free(buffer);
+	return ret;
+}
+
 struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol) {
 	struct fsmsg *msg = malloc(sizeof(struct fsmsg));
 	

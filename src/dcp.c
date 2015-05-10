@@ -12,7 +12,7 @@
 extern uint64_t fsid;
 
 int dcp_open(struct addrinfo *fsrv_ai, uint64_t *server_id, int32_t capacity, int32_t usage, int32_t filecnt) {
-	int ret, sd, len;
+	int ret, sd;
 	sd = socket(fsrv_ai->ai_family, fsrv_ai->ai_socktype, 0);
 	ret = connect(sd, fsrv_ai->ai_addr, fsrv_ai->ai_addrlen);
 
@@ -41,10 +41,9 @@ int dcp_open(struct addrinfo *fsrv_ai, uint64_t *server_id, int32_t capacity, in
 
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
-	char *buffer;
-	len = fsmsg_to_buffer(msg, &buffer, DCP);
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s:network error: write() failed", __func__);
+	ret = fsmsg_send(sd, msg, DCP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
 	fsmsg_free(msg);
 
 	msg = fsmsg_from_socket(sd, DCP);
@@ -70,8 +69,7 @@ int dcp_open(struct addrinfo *fsrv_ai, uint64_t *server_id, int32_t capacity, in
 
 int dcp_accept(struct fileserv_info *info) {
 	struct fsmsg *msg, *respmsg;
-	char *buffer;
-	int len, ret;
+	int ret;
 
 	msg = fsmsg_from_socket(info->sd, DCP);
 	if (!msg) return -1;
@@ -94,12 +92,10 @@ int dcp_accept(struct fileserv_info *info) {
 	data.integer = 1;
 	fsmsg_add_section(respmsg, ST_INTEGER, &data);
 	fsmsg_add_section(respmsg, ST_NONEXT, NULL);
-	len = fsmsg_to_buffer(respmsg, &buffer, DCP);
 
-	ret = write(info->sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, info->sd, buffer, len);
+	ret = fsmsg_send(info->sd, msg, DCP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
 
-	free(buffer);
 	fsmsg_free(msg);
 	fsmsg_free(respmsg);
 
@@ -200,8 +196,7 @@ int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t f
 void dcp_send_error(int sd, uint64_t tid, uint64_t sid, int errorn, char *errstr) {
 	struct fsmsg *msg;
 	union section_data data;
-	char *buffer;
-	int len, ret;
+	int ret;
 	
 	msg = dcp_create_msg(tid, fsid, sid, DCP_ERROR);
 
@@ -214,11 +209,8 @@ void dcp_send_error(int sd, uint64_t tid, uint64_t sid, int errorn, char *errstr
 
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
-	len = fsmsg_to_buffer(msg, &buffer, DCP);
+	ret = fsmsg_send(sd, msg, DCP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
 
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
-
-	free(buffer);
 	fsmsg_free(msg);
 }

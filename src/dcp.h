@@ -25,6 +25,7 @@ enum dcp_msgtype {
 
 struct fileserv_info {
 	uint64_t id;
+	uint64_t lasttid;
 	int sd;
 	char *name;
 	int max_capacity;

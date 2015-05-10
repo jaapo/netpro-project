@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 #define SYSLOGPRIO (LOG_USER | LOG_ERR)
 
@@ -28,6 +29,8 @@ uint64_t fsid;
 static struct fileserv_info fileservers[MAX_FSERVERS];
 static int fsrvcnt = 0;
 
+static struct node *dirroot;
+
 int main(int argc, char* argv[], char* envp[]) {
 	char *tmp;
 
@@ -38,6 +41,10 @@ int main(int argc, char* argv[], char* envp[]) {
 	read_config(conffile);
 
 	minreplicas = atoi(tmp);
+
+	dirroot = dir_init();
+	add_node("/lol");
+	add_node("/asd");
 
 	go_daemon();
 
@@ -99,9 +106,121 @@ int register_fsrv(int fsrvsd, uint64_t sid) {
 }
 
 void serve_fileserver(struct fileserv_info *info) {
+	struct fsmsg *msg;
+	int ret;
 
+	for(;;) {
+		msg = fsmsg_from_socket(info->sd, DCP);
+		if (!msg) return;
+		ret = dcp_validate_sections(msg);
+		if (ret < 0) {
+			dcp_send_error(info->sd, msg->tid, info->id, ERR_MSG, "");
+			continue;
+		}
+		info->lasttid = msg->tid;
+
+		DEBUGPRINT("received message %hd from file server %ld, socket %d", msg->msg_type, info->id, info->sd);
+
+		switch ((enum dcp_msgtype) msg->msg_type) {
+			case DCP_READ:
+				read_dir(info, SECI(msg, 0), SECSDUP(msg, 1));
+				break;
+			default:
+				DEBUGPRINT("%s", "message type serving not implemented yet");
+		}
+	}
 }
 
 uint64_t nextsid() {
 	return ++lastsid;
+}
+
+void read_dir(struct fileserv_info *info, int recurse, char *path) {
+	struct fsmsg *msg;
+	union section_data data;
+	int ret;
+	memset(&data, '\0', sizeof(data));
+
+	msg = dcp_create_msg(info->lasttid, fsid, info->id, DCP_FILEINFO);
+	data.integer = 0;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+
+	struct node *n = dir_find_node(path, 1);
+	n = n->children;
+	while(n) {
+		data.fileinfo.path = n->name;
+		data.fileinfo.pathlen = strlen(n->name);
+		fsmsg_add_section(msg, ST_FILEINFO, &data);
+		n=n->next;
+	}
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(info->sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
+
+	fsmsg_free(msg);
+	free(path);
+}
+
+////////////////////////XXX XXX XXX XXX XXX
+
+struct node *dir_init() {
+	struct node *root;
+	root = calloc(1, sizeof(struct node));
+	root->name = "/";
+	return root;
+}
+
+void add_node(const char *path) {
+	struct node *n, *p;
+	n = calloc(1, sizeof(struct node));
+	n->name = strdup(strrchr(path, '/')+1);
+	
+	p = dir_find_node(path, 0);
+	//XXX bad
+	add_child(p, n);
+}
+
+void add_child(struct node *p, struct node *c) {
+	struct node *i;
+	
+	i = p->children;
+	if (!i) {
+		p->children = c;
+		return;
+	}
+
+	while(i->next) i=i->next;
+	i->next = c;
+}
+
+struct node *dir_find_node(const char *pathc, int exact) {
+	char *level, *path;
+	struct node *n, *p;
+	n = NULL;
+
+	path = strdup(pathc);
+	level = strtok(path, "/");
+	if (!level) {
+		free(path);
+		return dirroot;
+	}
+	p = dirroot;
+
+	while(level && level[0] != '\0') {
+		fprintf(stderr, "\nlevel: %s, p->name: %s -- ", level, p->name);
+		for(n=p->children;n!=NULL;n=n->next) {
+			fprintf(stderr, "%s ", n->name);
+			if (!strcmp(n->name, level)) {
+				p=n;
+				break;
+			}
+		}
+		if (!n) break;
+
+		level = strtok(NULL, "/");
+	}
+
+	free(path);
+	return exact ? n : p;
 }

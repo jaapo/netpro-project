@@ -13,8 +13,7 @@ extern uint64_t sid;
 void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *errstr) {
 	struct fsmsg *msg;
 	union section_data data;
-	char *buffer;
-	int len, ret;
+	int ret;
 	
 	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_ERROR);
 
@@ -27,12 +26,9 @@ void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *
 
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
-	len = fsmsg_to_buffer(msg, &buffer, FAP);
-
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
-
-	free(buffer);
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
 	fsmsg_free(msg);
 }
 
@@ -42,7 +38,7 @@ void fap_init_server() {
 }
 
 int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, int32_t *dataport) {
-	int ret, sd, len;
+	int ret, sd;
 	sd = socket(serv_ai->ai_family, serv_ai->ai_socktype, 0);
 	ret = connect(sd, serv_ai->ai_addr, serv_ai->ai_addrlen);
 
@@ -68,10 +64,8 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
-	char *buffer;
-	len = fsmsg_to_buffer(msg, &buffer, FAP);
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s:network error: write() failed", __func__);
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
 	fsmsg_free(msg);
 
 	msg = fsmsg_from_socket(sd, FAP);
@@ -103,32 +97,26 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 uint64_t fap_client_quit(int sd, uint64_t cid) {
 	struct fsmsg *msg;
 	uint64_t tid = nexttid();
-	int len, ret;
-	char *buffer;
+	int ret;
 
 	msg = fap_create_msg(tid, sid, cid, fsid, FAP_QUIT);
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
-	len = fsmsg_to_buffer(msg, &buffer, FAP);
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
 
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, sd, buffer, len);
-
-	free(buffer);
 	fsmsg_free(msg);
 	return tid;
 }
 
 int fap_client_wait_ok(int sd, uint64_t tid) {
 	struct fsmsg *msg;
+	int ret;
 
 	msg = fsmsg_from_socket(sd, FAP);
-	if (!msg) {
-		fprintf(stderr, "fsmsg_from_socket return NULL\n");
-		return -1;
-	}
-	if (msg->tid != tid) {
-		fprintf(stderr, "received response with invalid tid\n");
+	ret = fap_check_response(msg, tid, sid, 0, fsid, FAP_QUIT);
+	if (ret < 0) {
+		fprintf(stderr, "invalid message\n");
 		return -1;
 	}
 	if ((enum fap_responses) msg->msg_type != FAP_OK) {
@@ -144,8 +132,7 @@ int fap_client_wait_ok(int sd, uint64_t tid) {
 int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files) {
 	struct fsmsg *msg;
 	uint64_t tid = nexttid();
-	int len, ret;
-	char *buffer;
+	int ret;
 
 	msg = fap_create_msg(tid, sid, cid, fsid, FAP_COMMAND);
 	
@@ -154,54 +141,41 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	data.integer = (int) FAP_CMD_LIST;
 	fsmsg_add_section(msg, ST_INTEGER, &data);
 
+	data.integer = 1;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+
 	data.string.length = strlen(current_dir);
 	data.string.data = current_dir;
 	fsmsg_add_section(msg, ST_STRING, &data);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
 
-	len = fsmsg_to_buffer(msg, &buffer, FAP);
-
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, sd, buffer, len);
-
-	free(buffer);
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
 	fsmsg_free(msg);
 
 	msg = fsmsg_from_socket(sd, FAP);
-	// XXX validation function
-	if (tid != msg->tid) return -2;
-	if (sid != msg->ids[0]) return -2;
-	if (cid != msg->ids[1]) return -2;
-	if (fsid != msg->ids[2]) return -2;
-
-	struct msg_section **sects = msg->sections;
-	if (sects[0]->type != ST_INTEGER || sects[0]->data.integer != FAP_RESPONSE) {
-		return -3;
+	ret = fap_check_response(msg, tid, sid, cid, fsid, FAP_COMMAND);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response\n");
+		return ret;
+	}
+	ret = fap_validate_sections(msg);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response sections\n");
+		return ret;
 	}
 
-	if (sects[1]->type != ST_INTEGER || sects[1]->data.integer != FAP_FILEINFO) {
-		return -3;
-	}
-
-	struct msg_section *s = sects[2];
-	int i = 0;
-	while (s->type==ST_FILEINFO) {
+	for(int i=0;i<SECI(msg, 1);i++) {
 		*files = realloc(*files, (i+1)*sizeof(struct fileinfo_sect));
-		fsmsg_fileinfo_copy(files[i], &s->data.fileinfo);
-		i++;
-		s = sects[i+2];
+		fsmsg_fileinfo_copy(files[i], &SECF(msg, i+2));
 	}
-
-	if (s->type != ST_NONEXT) {
-		printf("unexpected sections!\n");
-	}
-
-	return i;
+	return SECI(msg, 1);
 }
 
 int fap_accept(struct client_info *info) {
 	struct fsmsg *msg, *respmsg;
-	char *buffer;
-	int len, ret;
+	int ret;
 
 	msg = fsmsg_from_socket(info->sd, FAP);
 	ret = fap_check_response(msg, 0, 0, 0, 0, 0);
@@ -232,12 +206,10 @@ int fap_accept(struct client_info *info) {
 	data.integer = info->dataport;
 	fsmsg_add_section(respmsg, ST_INTEGER, &data);
 	fsmsg_add_section(respmsg, ST_NONEXT, NULL);
-	len = fsmsg_to_buffer(respmsg, &buffer, FAP);
-
-	ret = write(info->sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, info->sd, buffer, len);
-
-	free(buffer);
+	
+	ret = fsmsg_send(info->sd, respmsg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
+	
 	fsmsg_free(msg);
 	fsmsg_free(respmsg);
 
@@ -246,17 +218,14 @@ int fap_accept(struct client_info *info) {
 
 void fap_send_ok(int sd, uint64_t tid, uint64_t client_id) {
 	struct fsmsg *msg;
-	char *buffer;
-	int len, ret;
+	int ret;
 	
 	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_OK);
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
-	len = fsmsg_to_buffer(msg, &buffer, FAP);
-
-	ret = write(sd, buffer, len);
-	syscallerr(ret, "%s: write(%d, %p, %d) failed",__func__, sd, buffer, len);
-
-	free(buffer);
+	
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
 	fsmsg_free(msg);
 }
 
@@ -386,6 +355,10 @@ int fap_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t c
 		switch (request_type) {
 			case FAP_HELLO:
 				EXPECTTYPE(FAP_HELLO_RESPONSE);
+				break;
+			case FAP_QUIT:
+			case FAP_COMMAND:
+				EXPECTTYPE(FAP_RESPONSE);
 				break;
 			default:
 				fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);
