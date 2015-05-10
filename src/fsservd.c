@@ -149,8 +149,8 @@ void serve_client(struct client_info *info) {
 				return;
 				break;
 			case FAP_COMMAND:
-				if (msg->sections[0]->type != integer) {
-					DEBUGPRINT("%s", "invalid message. expected integer section in FAP_COMMAND.");
+				if (msg->sections[0]->type != ST_INTEGER) {
+					DEBUGPRINT("%s", "invalid message. expected ST_INTEGER section in FAP_COMMAND.");
 					goto breakfor;
 				}
 				cmd = msg->sections[0]->data.integer;

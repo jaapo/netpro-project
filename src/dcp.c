@@ -40,7 +40,7 @@ int dcp_accept(struct fileserv_info *info) {
 
 	//refresh bit XXX
 	data.integer = 1;
-	fsmsg_add_section(respmsg, integer, &data);
+	fsmsg_add_section(respmsg, ST_INTEGER, &data);
 	fsmsg_add_section(respmsg, nonext, NULL);
 	len = fsmsg_to_buffer(respmsg, &buffer, DCP);
 
@@ -75,12 +75,12 @@ int dcp_validate_sections(struct fsmsg* msg) {
 	switch ((enum dcp_msgtype) msg->msg_type) {
 		case DCP_HELLO:
 			TESTST(ST_STRING);
-			TESTST(integer);
-			TESTST(integer);
-			TESTST(integer);
+			TESTST(ST_INTEGER);
+			TESTST(ST_INTEGER);
+			TESTST(ST_INTEGER);
 			break;
 		case DCP_HELLO_RESPONSE:
-			TESTST(integer);
+			TESTST(ST_INTEGER);
 			break;
 		case DCP_LOCK:
 			break;

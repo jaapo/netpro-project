@@ -23,7 +23,7 @@ void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *
 	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_ERROR);
 
 	data.integer = errorn;
-	fsmsg_add_section(msg, integer, &data);
+	fsmsg_add_section(msg, ST_INTEGER, &data);
 
 	data.string.length = strlen(errstr);
 	data.string.data = errstr;
@@ -153,7 +153,7 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	union section_data data;
 
 	data.integer = (int) FAP_CMD_LIST;
-	fsmsg_add_section(msg, integer, &data);
+	fsmsg_add_section(msg, ST_INTEGER, &data);
 
 	data.string.length = strlen(current_dir);
 	data.string.data = current_dir;
@@ -175,11 +175,11 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	if (fsid != msg->ids[2]) return -2;
 
 	struct msg_section **sects = msg->sections;
-	if (sects[0]->type != integer || sects[0]->data.integer != FAP_RESPONSE) {
+	if (sects[0]->type != ST_INTEGER || sects[0]->data.integer != FAP_RESPONSE) {
 		return -3;
 	}
 
-	if (sects[1]->type != integer || sects[1]->data.integer != FAP_FILEINFO) {
+	if (sects[1]->type != ST_INTEGER || sects[1]->data.integer != FAP_FILEINFO) {
 		return -3;
 	}
 
@@ -226,7 +226,7 @@ int fap_accept(struct client_info *info) {
 	fsmsg_add_section(respmsg, ST_STRING, &data);
 
 	data.integer = info->dataport;
-	fsmsg_add_section(respmsg, integer, &data);
+	fsmsg_add_section(respmsg, ST_INTEGER, &data);
 	fsmsg_add_section(respmsg, nonext, NULL);
 	len = fsmsg_to_buffer(respmsg, &buffer, FAP);
 
@@ -283,17 +283,17 @@ int fap_validate_sections(struct fsmsg* msg) {
 			break;
 		case FAP_HELLO_RESPONSE:
 			TESTST(ST_STRING);
-			TESTST(integer);
+			TESTST(ST_INTEGER);
 			break;
 		case FAP_QUIT:
 			break;
 		case FAP_COMMAND:
-			TESTST(integer);
+			TESTST(ST_INTEGER);
 			cmd = s[0]->data.integer;
 			switch ((enum fap_commands) cmd) {
 				case FAP_CMD_CREATE:
 					TESTST(ST_STRING);
-					TESTST(integer);
+					TESTST(ST_INTEGER);
 					break;
 				case FAP_CMD_OPEN:
 				case FAP_CMD_CLOSE:
@@ -302,28 +302,28 @@ int fap_validate_sections(struct fsmsg* msg) {
 					break;
 				case FAP_CMD_READ:
 					TESTST(ST_STRING);
-					TESTST(integer);
-					TESTST(integer);
+					TESTST(ST_INTEGER);
+					TESTST(ST_INTEGER);
 					break;
 				case FAP_CMD_WRITE:
 					TESTST(ST_STRING);
-					TESTST(integer);
+					TESTST(ST_INTEGER);
 					break;
 				case FAP_CMD_DELETE:
 					TESTST(ST_STRING);
-					TESTST(integer);
+					TESTST(ST_INTEGER);
 					break;
 				case FAP_CMD_COPY:
 					TESTST(ST_STRING);
 					TESTST(ST_STRING);
-					TESTST(integer);
+					TESTST(ST_INTEGER);
 					break;
 				case FAP_CMD_FIND:
 					TESTST(ST_STRING);
 					TESTST(ST_STRING);
 					break;
 				case FAP_CMD_LIST:
-					TESTST(integer);
+					TESTST(ST_INTEGER);
 					TESTST(ST_STRING);
 					break;
 				default:
@@ -332,20 +332,20 @@ int fap_validate_sections(struct fsmsg* msg) {
 			}
 			break;
 		case FAP_RESPONSE:
-			TESTST(integer);
+			TESTST(ST_INTEGER);
 			resp = s[i-1]->data.integer;
 			switch ((enum fap_responses) resp) {
 				case FAP_OK:
 					break;
 				case FAP_FILEINFO:
-					TESTST(integer);
+					TESTST(ST_INTEGER);
 					count = s[i-1]->data.integer;
 					for (int j=0;j<count;j++) {
 						TESTST(fileinfo);
 					}
 					break;
 				case FAP_DATAOUT:
-					TESTST(integer);
+					TESTST(ST_INTEGER);
 					break;
 				default:
 					DEBUGPRINT("unexpected response type (%d)", resp);
@@ -353,7 +353,7 @@ int fap_validate_sections(struct fsmsg* msg) {
 			}
 			break;
 		case FAP_ERROR:
-			TESTST(integer);
+			TESTST(ST_INTEGER);
 			TESTST(ST_STRING);
 			break;
 		default:

@@ -38,7 +38,7 @@
 
 enum section_type {
 	nonext = 0,
-	integer = 1,
+	ST_INTEGER = 1,
 	ST_STRING = 2,
 	ST_BINARY = 3,
 	fileinfo = 4

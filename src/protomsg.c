@@ -64,7 +64,7 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protoc
 		len += bufferadd(&buf, &bufsize, &data, (void *)&tmpuint16, sizeof(tmpuint16));
 
 		switch ((enum section_type) section->type) {
-			case integer:
+			case ST_INTEGER:
 				tmpint32 = htonl(section->data.integer);
 				len += bufferadd(&buf, &bufsize, &data, (void *)&tmpint32, sizeof(tmpint32));
 				break;
@@ -172,7 +172,7 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 
 		switch (s->type) {
 			struct fileinfo_sect *fi;
-			case integer:
+			case ST_INTEGER:
 				TRY(read(sd, &s->data.integer, sizeof(s->data.integer)));
 				NTOHLTHIS(s->data.integer);
 				break;
@@ -271,7 +271,7 @@ void fsmsg_add_section(struct fsmsg *msg, uint16_t type, union section_data *dat
 
 	switch ((enum section_type) type) {
 		struct fileinfo_sect *fi;
-		case integer:
+		case ST_INTEGER:
 			sec->data.integer = data->integer;
 			break;
 		case ST_STRING:
