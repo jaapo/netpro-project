@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/sendfile.h>
 
 #define SYSLOGPRIO (LOG_USER | LOG_ERR)
 
@@ -104,7 +105,7 @@ void do_fap_server() {
 	//fap_init_server();
 
 	for (;;) {
-		clisd = accept(listensd, cliaddr, &cliaddrlen);
+		NO_INTR(clisd = accept(listensd, cliaddr, &cliaddrlen));
 		if (clisd < 0 && errno == EINTR) continue;
 		syscallerr(clisd, "%s: accept() failed", __func__);
 		
@@ -170,6 +171,7 @@ void serve_client(struct client_info *info) {
 					case FAP_CMD_READ:
 						break;
 					case FAP_CMD_WRITE:
+						write_file(info, SECSDUP(msg, 1), SECI(msg, 2));
 						break;
 					case FAP_CMD_DELETE:
 						break;
@@ -202,6 +204,7 @@ int register_client(int clisd, uint64_t cid) {
 			clients[i].id = cid;
 			clients[i].lasttid = 0;
 			clients[i].sd = clisd;
+			clients[i].datasd = 0;
 			clients[i].dataport = FAP_DATAPORT_BASE + i;
 			clicnt++;
 			break;
@@ -292,7 +295,7 @@ void create_file(struct client_info *info, char *path) {
 	//check for exists error
 	ret = dcp_check_response(dirmsg, tid, sid, fsid, DCP_CREATE);
 
-	if (dirmsg && ret == DCP_ERROR && SECI(dirmsg, 0) == ERR_EXISTS) {
+	if (dirmsg && ret == -5 && SECI(dirmsg, 0) == ERR_EXISTS) {
 		fap_send_error(info->sd, info->lasttid, info->id, ERR_EXISTS, "file already exists");
 		goto cleanup;
 	} else if (ret < 0) {
@@ -311,12 +314,11 @@ void create_file(struct client_info *info, char *path) {
 	}
 
 	//create local file
-	char *localpath = malloc(strlen(dataloc) + 1 + strlen(path));
+	char *localpath = malloc(strlen(dataloc) + strlen(path) + 1);
 	DEBUGPRINT("dataloc: %s, dirmsg->path: %s", dataloc, path);
 	strcpy(localpath, dataloc);
-	strcat(localpath, "/");
 	strcat(localpath, path);
-	ret = creat(localpath, S_IRUSR | S_IWUSR);
+	ret = open(localpath, O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
 	syscallerr(ret, "unable to create local file %s", localpath);
 	close(ret);
 	DEBUGPRINT("created local file %s", localpath);
@@ -328,6 +330,82 @@ void create_file(struct client_info *info, char *path) {
 	fsmsg_add_section(climsg, ST_INTEGER, &data);
 	fsmsg_add_section(climsg, ST_INTEGER, &dirmsg->sections[0]->data);	
 	fsmsg_add_section(climsg, ST_FILEINFO, &dirmsg->sections[1]->data);
+	fsmsg_add_section(climsg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(info->sd, climsg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
+
+cleanup:	
+	fsmsg_free(dirmsg);
+	fsmsg_free(climsg);
+	free(path);
+}
+
+void write_file(struct client_info *info, char *path, int length) {
+	struct fsmsg *dirmsg, *climsg;
+	dirmsg = NULL;
+	climsg = NULL;
+	union section_data data;
+	int ret;
+	uint64_t tid = nexttid();
+
+	//send update to directory
+	dirmsg = dcp_create_msg(tid, fsid, sid, DCP_UPDATE);
+
+	memset(&data, '\0', sizeof(data));
+	data.fileinfo.path = path;
+	data.fileinfo.pathlen = strlen(path);
+	data.fileinfo.username = info->user;
+	data.fileinfo.usernamelen = strlen(info->user);
+	fsmsg_add_section(dirmsg, ST_FILEINFO, &data);
+	fsmsg_add_section(dirmsg, ST_NONEXT, NULL);
+
+	ret = fsmsg_send(dssd, dirmsg, DCP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, dssd);
+	fsmsg_free(dirmsg);
+
+	dirmsg = fsmsg_from_socket(dssd, DCP);
+	
+	//check for error
+	ret = dcp_check_response(dirmsg, tid, sid, fsid, DCP_UPDATE);
+
+	if (ret == -5) {
+		fap_send_error(info->sd, info->lasttid, info->id, SECI(dirmsg, 0), "error");
+		goto cleanup;
+	} else if (ret < 0) {
+		fprintf(stderr, "invalid response to DCP_CREATE, error: %d\n", ret);
+		goto cleanup;
+	}
+	
+	ret = dcp_validate_sections(dirmsg);
+	if (ret < 0) {
+		fprintf(stderr, "section validation failed, error: %d\n", ret);
+		goto cleanup;
+	}
+
+	if (SECI(dirmsg, 0) != 1) {
+		fprintf(stderr, "expected only one fileinfo section, received message with %d\n", SECI(dirmsg, 0));
+	}
+
+	//update local file
+	char *localpath = malloc(strlen(dataloc) + strlen(path) + 1);
+	int lfd;
+	DEBUGPRINT("dataloc: %s, dirmsg->path: %s", dataloc, path);
+	strcpy(localpath, dataloc);
+	strcat(localpath, path);
+	NO_INTR(ret = open(localpath, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR));
+	syscallerr(ret, "unable to create/open local file %s", localpath);
+	lfd = ret;
+	ret = recvfile(info->datasd, lfd, length);
+	syscallerr(ret, "unable to write %d bytes local file %s", length, localpath);
+	close(lfd);
+	DEBUGPRINT("wrote %d bytes to %s", ret, localpath);
+	free(localpath);
+
+	//send response to client
+	climsg = fap_create_msg(info->lasttid, sid, info->id, fsid, FAP_RESPONSE);
+	data.integer = FAP_OK;
+	fsmsg_add_section(climsg, ST_INTEGER, &data);
 	fsmsg_add_section(climsg, ST_NONEXT, NULL);
 	
 	ret = fsmsg_send(info->sd, climsg, FAP);

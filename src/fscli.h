@@ -1,4 +1,3 @@
-
 void print_hello();
 void start_connect();
 void prompt_loop();
@@ -7,4 +6,5 @@ void working_dir(char *args, int arglen);
 void list_dir(char *args, int arglen);
 void client_quit();
 void new_file(char *args, int arglen);
+void edit_file(char *args, int arglen);
 

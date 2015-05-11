@@ -10,3 +10,4 @@ uint64_t nextcid();
 
 void list_directory(struct client_info *info, int recurse, char *path, int pathlen);
 void create_file(struct client_info *info, char *path);
+void write_file(struct client_info *info, char *path, int length);

@@ -63,7 +63,7 @@ int readline(char *buffer, int fp, int maxline) {
   int i=0;
   int tmp;
   while (i<maxline) {
-    tmp = read(fp, &buffer[i++], 1);
+    NO_INTR(tmp = read(fp, &buffer[i++], 1));
     if (tmp<0) {
       syscallerr(tmp, "readline: read returned %d", tmp);
       exit(1);

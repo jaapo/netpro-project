@@ -14,7 +14,7 @@ extern uint64_t fsid;
 int dcp_open(struct addrinfo *fsrv_ai, uint64_t *server_id, int32_t capacity, int32_t usage, int32_t filecnt) {
 	int ret, sd;
 	sd = socket(fsrv_ai->ai_family, fsrv_ai->ai_socktype, 0);
-	ret = connect(sd, fsrv_ai->ai_addr, fsrv_ai->ai_addrlen);
+	NO_INTR(ret = connect(sd, fsrv_ai->ai_addr, fsrv_ai->ai_addrlen));
 
 	if (ret<0) {
 		close(sd);
@@ -139,6 +139,7 @@ int dcp_validate_sections(struct fsmsg* msg) {
 			TESTST(ST_STRING);
 			break;
 		case DCP_UPDATE:
+			TESTST(ST_FILEINFO);
 			break;
 		case DCP_DELETE:
 			break;
@@ -192,6 +193,9 @@ int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t f
 			case DCP_CREATE:
 				EXPECTTYPE(DCP_FILEINFO);
 				break;
+			case DCP_UPDATE:
+				EXPECTTYPE(DCP_FILEINFO);
+				break;
 			default:
 				fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);
 		}
@@ -205,7 +209,7 @@ void dcp_send_error(int sd, uint64_t tid, uint64_t sid, int errorn, char *errstr
 	union section_data data;
 	int ret;
 	
-	msg = dcp_create_msg(tid, fsid, sid, DCP_ERROR);
+	msg = dcp_create_msg(tid, sid, fsid, DCP_ERROR);
 
 	data.integer = errorn;
 	fsmsg_add_section(msg, ST_INTEGER, &data);
@@ -220,4 +224,22 @@ void dcp_send_error(int sd, uint64_t tid, uint64_t sid, int errorn, char *errstr
 	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
 
 	fsmsg_free(msg);
+}
+
+int dcp_send_fileinfo(struct fileserv_info *srv, struct fileinfo_sect *file) {
+	struct fsmsg *msg;
+	union section_data data;
+	int ret;
+	msg = dcp_create_msg(srv->lasttid, srv->id, fsid, DCP_FILEINFO);
+	
+	memset(&data, '\0', sizeof(data));
+	data.integer = 1;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+	data.fileinfo = *file;
+	fsmsg_add_section(msg, ST_FILEINFO, &data);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(srv->sd, msg, DCP);
+	fsmsg_free(msg);
+	return ret;
 }

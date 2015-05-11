@@ -11,6 +11,7 @@ uint64_t nextsid();
 
 void read_dir(struct fileserv_info *info, int recurse, char *path);
 void create_file(struct fileserv_info *info, struct fileinfo_sect *fi);
+void update_file(struct fileserv_info *info, char *path);
 
 //directory structures
 struct node {
@@ -24,3 +25,4 @@ struct node *dir_init();
 struct node *add_node(const char *path);
 void add_child(struct node *p, struct node *c);
 struct node *dir_find_node(const char *pathc, int exact);
+void fileinfo_from_node(struct fileinfo_sect *fi, struct node *n);

@@ -122,7 +122,7 @@ int readval(const char *buf, int len, char **ptr, int readlen, void *dst) {
 	}
 }
 
-#define TRY(expr) do {int ret = (expr);DEBUGPRINT("   %d", ret);len+=ret;if(ret<=0) goto fail;}while(0)
+#define TRY(expr) do {int ret; NO_INTR(ret = (expr));DEBUGPRINT("   %d", ret);len+=ret;if(ret<=0) goto fail;}while(0)
 struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 	struct fsmsg *msg;
 	int len = 0; //used in macro
@@ -256,7 +256,7 @@ int fsmsg_send(int sd, struct fsmsg* msg, enum fsmsg_protocol protocol) {
 	len = fsmsg_to_buffer(msg, &buffer, protocol);
 	DEBUGPRINT("sending msg, type: %d, len: %d, tid: %lu", msg->msg_type, len, msg->tid);
 
-	ret = write(sd, buffer, len);
+	NO_INTR(ret = write(sd, buffer, len));
 	DEBUGPRINT("write returned %d", ret);
 	syscallerr(ret, "%s: write(%d, %p, %d) failed", __func__, sd, buffer, len);
 

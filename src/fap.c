@@ -1,6 +1,7 @@
 #include "protomsg.h"
 #include "fap.h"
 #include "util.h"
+#include "netutil.h"
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -32,15 +33,17 @@ void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *
 	fsmsg_free(msg);
 }
 
-int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, int32_t *dataport) {
+int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, int *datasd) {
 	int ret, sd;
 	sd = socket(serv_ai->ai_family, serv_ai->ai_socktype, 0);
-	ret = connect(sd, serv_ai->ai_addr, serv_ai->ai_addrlen);
+	syscallerr(sd, "socket");
+	NO_INTR(ret = connect(sd, serv_ai->ai_addr, serv_ai->ai_addrlen));
 
 	if (ret<0) {
 		close(sd);
 		return ret;
 	}
+
 	struct fsmsg *msg;
 	uint64_t tid = nexttid();
 	msg = fap_create_msg(tid, 0, 0, 0, FAP_HELLO);
@@ -68,7 +71,7 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	if (ret < 0) {
 		fprintf(stderr, "invalid response to FAP_HELLO \n");
 		fsmsg_free(msg);
-		return -1;
+		goto fail;
 	}
 	
 	sid = msg->ids[0];
@@ -79,14 +82,40 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 	if (ret<0) {
 		fap_send_error(sd, tid, *cid, ERR_MSG, "");
 		fsmsg_free(msg);
-		return -1;
+		goto fail;
 	}
 
 	*servername = SECSDUP(msg, 0);
-	*dataport = SECI(msg, 1);
-
+	int dataport = SECI(msg, 1);
 	fsmsg_free(msg);
+	
+	switch (serv_ai->ai_family) {
+		case AF_INET:
+			((struct sockaddr_in*)serv_ai->ai_addr)->sin_port = htons(dataport);
+			break;
+		case AF_INET6:
+			((struct sockaddr_in6*)serv_ai->ai_addr)->sin6_port = htons(dataport);
+			break;
+		default:
+			fprintf(stderr, "unknown protocol, can't set dataport\n");
+			goto fail;
+	}
+
+	*datasd = socket(serv_ai->ai_family, serv_ai->ai_socktype, 0);
+	syscallerr(*datasd, "socket() failed when tried to create datasocket");
+	NO_INTR(ret = connect(*datasd, serv_ai->ai_addr, serv_ai->ai_addrlen));
+	if (ret < 0) {
+		fprintf(stderr, "connect() failed to dataport\n");
+		goto fail;
+	}
+
 	return sd;
+
+fail:
+	close(sd);
+	if (*datasd != 0)
+		close(*datasd);
+	return -1;
 }
 	
 uint64_t fap_client_quit(int sd, uint64_t cid) {
@@ -215,9 +244,59 @@ int fap_create(int sd, uint64_t cid, char *filename) {
 	return 0;
 }
 
+int fap_write(int sd, int datasd, uint64_t cid, char *filename, char* data, int datalen) {
+	struct fsmsg *msg;
+	uint64_t tid = nexttid();
+	int ret;
+
+	msg = fap_create_msg(tid, sid, cid, fsid, FAP_COMMAND);
+	
+	union section_data sdata;
+
+	sdata.integer = (int) FAP_CMD_WRITE;
+	fsmsg_add_section(msg, ST_INTEGER, &sdata);
+
+	sdata.string.length = strlen(filename);
+	sdata.string.data = filename;
+	fsmsg_add_section(msg, ST_STRING, &sdata);
+
+	//byte count
+	sdata.integer = datalen;
+	fsmsg_add_section(msg, ST_INTEGER, &sdata);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
+	fsmsg_free(msg);
+
+	NO_INTR(ret = write(datasd, data, datalen));
+	if (ret < 0) {
+		fprintf(stderr, "%s: write of %d bytes to datasd(%d) failed\n", __func__, datalen, datasd);
+		return -1;
+	}
+
+	msg = fsmsg_from_socket(sd, FAP);
+	ret = fap_check_response(msg, tid, sid, cid, fsid, FAP_COMMAND);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response, error: %d\n", ret);
+		return ret;
+	}
+	ret = fap_validate_sections(msg);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response sections, error: %d\n", ret);
+		return ret;
+	}
+	
+	if (SECI(msg, 0) != FAP_OK) {
+		return -1;
+	}
+	return 0;
+}
+
 int fap_accept(struct client_info *info) {
 	struct fsmsg *msg, *respmsg;
-	int ret;
+	int ret, tmpsd;
 
 	msg = fsmsg_from_socket(info->sd, FAP);
 	ret = fap_check_response(msg, 0, 0, 0, 0, 0);
@@ -253,6 +332,15 @@ int fap_accept(struct client_info *info) {
 	fsmsg_free(msg);
 	fsmsg_free(respmsg);
 
+	//XXX no ipv6
+	tmpsd = start_listen(info->dataport);
+
+	NO_INTR(ret = accept(tmpsd, NULL, NULL));
+	syscallerr(ret, "listen() on datasocket");
+	info->datasd = ret;
+
+	close(tmpsd);
+	
 	return 0;
 }
 

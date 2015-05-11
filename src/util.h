@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <syslog.h>
+#include <errno.h>
 
 #define NOT_IMPLEMENTED(a,b) fprintf(stderr, "not implemented!\n")
 
@@ -20,6 +21,8 @@
 #define DEBUGPRINT(format, ...) fprintf(stderr, CLRRED "DEBUG (%s:%d, %s): " format CLREND "\n", __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define SYSLOG(p,f,...) do{syslog(p,f,__VA_ARGS__);fprintf(stderr, CLRGRN "syslogged: " f CLREND "\n", __VA_ARGS__);}while(0)
 #endif
+
+#define NO_INTR(e) do{}while((e) == -1 && errno == EINTR)
 
 #define MAX_LINE 1024
 

@@ -67,8 +67,7 @@ void do_dcp_server() {
 	socklen_t fssrvaddrlen;
 
 	for (;;) {
-		fsrvsd = accept(listensd, fssrvaddr, &fssrvaddrlen);
-		if (fsrvsd < 0 && errno == EINTR) continue;
+		NO_INTR(fsrvsd = accept(listensd, fssrvaddr, &fssrvaddrlen));
 		syscallerr(fsrvsd, "%s: accept() failed", __func__);
 		
 		ret = register_fsrv(fsrvsd, server_id);
@@ -128,6 +127,9 @@ void serve_fileserver(struct fileserv_info *info) {
 				break;
 			case DCP_CREATE:
 				create_file(info, &SECF(msg, 0));
+				break;
+			case DCP_UPDATE:
+				update_file(info, SECSDUP(msg, 0));
 				break;
 			default:
 				DEBUGPRINT("%s", "message type serving not implemented yet");
@@ -205,6 +207,25 @@ void create_file(struct fileserv_info *info, struct fileinfo_sect *fi) {
 	free(path);
 }
 
+void update_file(struct fileserv_info *info, char *path) {
+	struct fileinfo_sect fi;
+	int ret;
+
+	struct node *n = dir_find_node(path, 1);
+	if (!n) {
+		dcp_send_error(info->sd, info->lasttid, info->id, ERR_FILENOTFOUND, "file doesn't exist");
+		free(path);
+		return;
+	}
+
+	//XXX invalidate other replicas
+	
+	fileinfo_from_node(&fi, n);
+	ret = dcp_send_fileinfo(info, &fi);
+	syscallerr(ret, "%s: dcp_send_fileinfo() failed, socket=%d", __func__, info->sd);
+
+	free(path);
+}
 ////////////////////////XXX XXX XXX XXX XXX
 
 struct node *dir_init() {
@@ -267,4 +288,12 @@ struct node *dir_find_node(const char *pathc, int exact) {
 
 	free(path);
 	return exact ? n : p;
+}
+
+void fileinfo_from_node(struct fileinfo_sect *fi, struct node *n) {
+	memset(fi, '\0', sizeof(*fi));
+	fi->path = n->name;
+	fi->pathlen = strlen(n->name);
+	fi->username = n->user ? n->user : "user";
+	fi->usernamelen = n->user ? strlen(n->user) : 4;
 }

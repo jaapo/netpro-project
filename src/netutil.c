@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <string.h>
+#include <unistd.h>
 
 int start_listen(int port) {
 	int sd, ret, one = 1;
@@ -27,9 +28,25 @@ int start_listen(int port) {
 	ret = bind(sd, (struct sockaddr *) &bindaddr, bindaddrlen);
 	syscallerr(ret, "%s: socket() failed", __func__);
 
-	ret = listen(sd, 5);
+	NO_INTR(ret = listen(sd, 5));
 	syscallerr(ret, "%s: listen() failed", __func__);
 
 	return sd;
 }
 
+#define RECVBUFSIZE 1024
+int recvfile(int sd, int fd, int len) {
+	char buffer[RECVBUFSIZE];
+	int ret, left;
+	left = len;
+
+	while (left) {
+		NO_INTR(ret = read(sd, buffer, RECVBUFSIZE));
+		if (ret < 0) return ret;
+		NO_INTR(ret = write(fd, buffer, ret));
+		if (ret < 0) return ret;
+		left -= ret;
+	}
+
+	return len;
+}

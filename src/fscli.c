@@ -31,7 +31,7 @@ static uint64_t cid;
 uint64_t fsid;
 uint64_t sid;
 
-static int32_t dataport;
+static int datasd = 0;
 
 static char *servername;
 
@@ -81,7 +81,7 @@ void start_connect() {
 		printf("connecting to %s (%s:%s)...\n", server, servaddr, servport);
 		logwrite(logfile, "connecting to %s (%s:%s)", server, servaddr, servport);
 		
-		fapsd = fap_open(ai, &cid, &servername, &dataport);
+		fapsd = fap_open(ai, &cid, &servername, &datasd);
 		if (fapsd >= 0) break;
 		printf("connection failed\n");
 		logwrite(logfile, "connection failed");
@@ -118,7 +118,7 @@ void prompt_loop() {
 		CHECKCMD_NOARGS("ls", list_dir)
 		CHECKCMD_ARGS("ls", NOT_IMPLEMENTED)
 		CHECKCMD_ARGS("cat", NOT_IMPLEMENTED)
-		CHECKCMD_ARGS("edit", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("edit", edit_file)
 		CHECKCMD_ARGS("rm", NOT_IMPLEMENTED)
 		CHECKCMD_ARGS("rmdir", NOT_IMPLEMENTED)
 		CHECKCMD_ARGS("mkdir", NOT_IMPLEMENTED)
@@ -179,6 +179,28 @@ void new_file(char *args, int arglen) {
 	strcat(filename, cwd);
 	strcat(filename, args);
 	ret = fap_create(fapsd, cid, filename);
+	free(filename);
+	if (ret < 0) {
+		printf("error\n");
+		return;
+	}
+}
+
+void edit_file(char *args, int arglen) {
+	int ret, len;
+	char data[MAX_LINE];
+	char *filename = malloc(arglen + strlen(cwd));
+	args[arglen-1] = '\0';
+	filename[0] = '\0';
+	strcat(filename, cwd);
+	strcat(filename, args);
+
+	printf("enter text: ");
+	fflush(stdout);
+	len = readline(data, STDIN_FILENO, MAX_LINE);
+	if (len <= 0) return;
+
+	ret = fap_write(fapsd, datasd, cid, filename, data, len);
 	free(filename);
 	if (ret < 0) {
 		printf("error\n");
