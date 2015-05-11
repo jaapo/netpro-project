@@ -32,11 +32,6 @@ void fap_send_error(int sd, uint64_t tid, uint64_t client_id, int errorn, char *
 	fsmsg_free(msg);
 }
 
-void fap_init_server() {
-	fsid = 1;
-	sid = 1;
-}
-
 int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, int32_t *dataport) {
 	int ret, sd;
 	sd = socket(serv_ai->ai_family, serv_ai->ai_socktype, 0);
@@ -76,9 +71,9 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 		return -1;
 	}
 	
-	sid = msg->ids[1];
-	*cid = msg->ids[2];
-	fsid = msg->ids[3];
+	sid = msg->ids[0];
+	*cid = msg->ids[1];
+	fsid = msg->ids[2];
 
 	ret = fap_validate_sections(msg);
 	if (ret<0) {
@@ -116,11 +111,11 @@ int fap_client_wait_ok(int sd, uint64_t tid) {
 	msg = fsmsg_from_socket(sd, FAP);
 	ret = fap_check_response(msg, tid, sid, 0, fsid, FAP_QUIT);
 	if (ret < 0) {
-		fprintf(stderr, "invalid message\n");
+		fprintf(stderr, "invalid message, error: %d\n", ret);
 		return -1;
 	}
-	if ((enum fap_responses) msg->msg_type != FAP_OK) {
-		fprintf(stderr, "expected OK-response(%d), received %d\n", FAP_OK, (enum fap_responses) msg->msg_type);
+	if ((enum fap_responses) SECI(msg, 0) != FAP_OK) {
+		fprintf(stderr, "expected OK-response(%d)\n", FAP_OK);
 		return -1;
 	}
 
@@ -157,20 +152,23 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	msg = fsmsg_from_socket(sd, FAP);
 	ret = fap_check_response(msg, tid, sid, cid, fsid, FAP_COMMAND);
 	if (ret < 0) {
-		fprintf(stderr, "invalid response\n");
+		fprintf(stderr, "invalid response, error: %d\n", ret);
 		return ret;
 	}
 	ret = fap_validate_sections(msg);
 	if (ret < 0) {
-		fprintf(stderr, "invalid response sections\n");
+		fprintf(stderr, "invalid response sections, error: %d\n", ret);
 		return ret;
 	}
 
-	for(int i=0;i<SECI(msg, 1);i++) {
-		*files = realloc(*files, (i+1)*sizeof(struct fileinfo_sect));
-		fsmsg_fileinfo_copy(files[i], &SECF(msg, i+2));
+	int count = SECI(msg, 1);
+	*files = calloc(count, sizeof(struct fileinfo_sect));
+	struct fileinfo_sect *tmp = *files;
+	for(int i=0;i<count;i++) {
+		fsmsg_fileinfo_copy(&tmp[i], &SECF(msg, i+2));
 	}
-	return SECI(msg, 1);
+	fsmsg_free(msg);
+	return count;
 }
 
 int fap_accept(struct client_info *info) {
@@ -218,9 +216,12 @@ int fap_accept(struct client_info *info) {
 
 void fap_send_ok(int sd, uint64_t tid, uint64_t client_id) {
 	struct fsmsg *msg;
+	union section_data data;
 	int ret;
 	
-	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_OK);
+	msg = fap_create_msg(tid, sid, client_id, fsid, FAP_RESPONSE);
+	data.integer = FAP_OK;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 	
 	ret = fsmsg_send(sd, msg, FAP);
@@ -339,13 +340,14 @@ int fap_validate_sections(struct fsmsg* msg) {
 	return 0;
 }
 
+#define EXPECTID(e,id,v) do{if(e&&id!=e) {DEBUGPRINT("unexpected id (" #e "). %lu != %lu", id, e);return v;}}while(0)
 #define EXPECTTYPE(et) do{if(t!=et) return -7;}while(0)
 int fap_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t cid, uint64_t fsid, enum fap_type request_type) {
 	if (!msg) return -1;
-	if (tid != 0 && msg->tid != tid) return -2;
-	if (sid != 0 && msg->ids[0] != sid) return -3;
-	if (fsid != 0 && msg->ids[1] != cid) return -4;
-	if (fsid != 0 && msg->ids[2] != fsid) return -5;
+	EXPECTID(tid, msg->tid, -2);
+	EXPECTID(sid, msg->ids[0], -3);
+	EXPECTID(cid, msg->ids[1], -4);
+	EXPECTID(fsid, msg->ids[2], -5);
 
 	enum fap_type t;
 	t = msg->msg_type;

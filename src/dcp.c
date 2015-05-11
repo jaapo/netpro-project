@@ -59,7 +59,6 @@ int dcp_open(struct addrinfo *fsrv_ai, uint64_t *server_id, int32_t capacity, in
 
 	ret = dcp_validate_sections(msg);
 	if (ret < 0) {
-		dcp_send_error(sd, tid, *server_id, ERR_MSG, "section validation error");
 		fsmsg_free(msg);
 		return -1;
 	}
@@ -93,7 +92,7 @@ int dcp_accept(struct fileserv_info *info) {
 	fsmsg_add_section(respmsg, ST_INTEGER, &data);
 	fsmsg_add_section(respmsg, ST_NONEXT, NULL);
 
-	ret = fsmsg_send(info->sd, msg, DCP);
+	ret = fsmsg_send(info->sd, respmsg, DCP);
 	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
 
 	fsmsg_free(msg);
@@ -156,7 +155,7 @@ int dcp_validate_sections(struct fsmsg* msg) {
 			break;
 		case DCP_FILEINFO:
 			TESTST(ST_INTEGER);
-			for (int j=0;j<s[i-1]->data.integer;j++) {
+			for (int j=0;j<s[0]->data.integer;j++) {
 				TESTST(ST_FILEINFO);
 			}
 			break;
@@ -184,6 +183,9 @@ int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t f
 		switch (request_type) {
 			case DCP_HELLO:
 				EXPECTTYPE(DCP_HELLO_RESPONSE);
+				break;
+			case DCP_READ:
+				EXPECTTYPE(DCP_FILEINFO);
 				break;
 			default:
 				fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);

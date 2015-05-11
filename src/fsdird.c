@@ -24,7 +24,7 @@ static int listensd;
 
 static uint64_t lastsid = 0;
 
-uint64_t fsid;
+uint64_t fsid = 1333333337;
 
 static struct fileserv_info fileservers[MAX_FSERVERS];
 static int fsrvcnt = 0;
@@ -85,7 +85,7 @@ void do_dcp_server() {
 			continue;
 		}
 
-		SYSLOG(SYSLOGPRIO, "connection from %s", fsrvinfo->name);
+		SYSLOG(SYSLOGPRIO, "connection from %s (server id: %lu)", fsrvinfo->name, fsrvinfo->id);
 		serve_fileserver(fsrvinfo);
 	}
 }
@@ -141,21 +141,25 @@ void read_dir(struct fileserv_info *info, int recurse, char *path) {
 	int ret;
 	memset(&data, '\0', sizeof(data));
 
-	msg = dcp_create_msg(info->lasttid, fsid, info->id, DCP_FILEINFO);
+	msg = dcp_create_msg(info->lasttid, info->id, fsid, DCP_FILEINFO);
 	data.integer = 0;
 	fsmsg_add_section(msg, ST_INTEGER, &data);
 
 	struct node *n = dir_find_node(path, 1);
 	n = n->children;
 	while(n) {
+		SECI(msg, 0)++;
 		data.fileinfo.path = n->name;
 		data.fileinfo.pathlen = strlen(n->name);
+		data.fileinfo.username = "aaro";
+		data.fileinfo.usernamelen = 4;
 		fsmsg_add_section(msg, ST_FILEINFO, &data);
 		n=n->next;
 	}
+
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 	
-	ret = fsmsg_send(info->sd, msg, FAP);
+	ret = fsmsg_send(info->sd, msg, DCP);
 	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
 
 	fsmsg_free(msg);

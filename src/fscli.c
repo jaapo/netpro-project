@@ -144,7 +144,7 @@ void client_quit() {
 void change_dir(char *args, int arglen) {
 	char *dir;
 	int ret, i;
-	struct fileinfo_sect *files;
+	struct fileinfo_sect *files = NULL;
 
 	ret = fap_list(fapsd, cid, 1, cwd, &files);
 
@@ -174,7 +174,7 @@ void working_dir(char *args, int arglen) {
 
 void list_dir(char *args, int arglen) {
 	int ret, i;
-	struct fileinfo_sect *files;
+	struct fileinfo_sect *files = NULL;
 
 	ret = fap_list(fapsd, cid, 1, cwd, &files);
 
@@ -189,13 +189,13 @@ void list_dir(char *args, int arglen) {
 		char *name, filetype;
 		int namelen;
 
-		name = (char *) memrchr(files[i].path, '/', files[i].pathlen) + 1;
-		namelen = files[i].pathlen - (name - files[i].path) - 1;
+		name = files[i].path;//(char *) memrchr(files[i].path, '/', files[i].pathlen) + 1;
+		namelen = files[i].pathlen;//files[i].pathlen - (name - files[i].path) - 1;
 
 		filetype = files[i].type==1?'f':'d';
 
 		// modified user size type name
-		printf("%s %.*s %6u %c %.*s", modtime, files[i].usernamelen, files[i].username, files[i].size, filetype, namelen, name);
+		printf("%s %.*s %6u %c %.*s\n", modtime, files[i].usernamelen, files[i].username, files[i].size, filetype, namelen, name);
 	}
 
 	printf("%d files\n", i);

@@ -51,7 +51,6 @@ int fap_client_wait_ok(int sd, uint64_t tid);
 int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files);
 
 //server functions
-void fap_init_server();
 int fap_accept(struct client_info *info);
 void fap_send_ok(int sd, uint64_t tid, uint64_t client_id);
 

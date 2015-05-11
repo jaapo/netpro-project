@@ -98,7 +98,7 @@ void do_fap_server() {
 	struct sockaddr *cliaddr = NULL;
 	socklen_t cliaddrlen;
 
-	fap_init_server();
+	//fap_init_server();
 
 	for (;;) {
 		clisd = accept(listensd, cliaddr, &cliaddrlen);
@@ -224,17 +224,27 @@ void list_directory(struct client_info *info, int recurse, char *path, int pathl
 	fsmsg_add_section(dirmsg, ST_STRING, &data);
 	fsmsg_add_section(dirmsg, ST_NONEXT, NULL);
 
-	fsmsg_send(dssd, dirmsg, DCP);
+	ret = fsmsg_send(dssd, dirmsg, DCP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, dssd);
 	fsmsg_free(dirmsg);
 
 	dirmsg = fsmsg_from_socket(dssd, DCP);
 	
-	if (dcp_check_response(dirmsg, tid, sid, fsid, DCP_READ) < 0 || dcp_validate_sections(dirmsg) < 0) {
-		fprintf(stderr, "invalid response to DCP_READ\n");
+	ret = dcp_check_response(dirmsg, tid, sid, fsid, DCP_READ);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response to DCP_READ, error: %d\n", ret);
+		return;
+	}
+	
+	ret = dcp_validate_sections(dirmsg);
+	if (ret < 0) {
+		fprintf(stderr, "section validation failed, error: %d\n", ret);
 		return;
 	}
 
-	climsg = fap_create_msg(info->lasttid, sid, info->id, fsid, FAP_FILEINFO);
+	climsg = fap_create_msg(info->lasttid, sid, info->id, fsid, FAP_RESPONSE);
+	data.integer = FAP_FILEINFO;
+	fsmsg_add_section(climsg, ST_INTEGER, &data);
 	fsmsg_add_section(climsg, ST_INTEGER, &dirmsg->sections[0]->data);
 	
 	for (int i=0;i<SECI(dirmsg, 0);i++) {
