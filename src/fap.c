@@ -187,6 +187,7 @@ int fap_create(int sd, uint64_t cid, char *filename) {
 	data.string.data = filename;
 	fsmsg_add_section(msg, ST_STRING, &data);
 
+	//file type
 	data.integer = 1;
 	fsmsg_add_section(msg, ST_INTEGER, &data);
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
@@ -230,9 +231,7 @@ int fap_accept(struct client_info *info) {
 	info->lasttid = msg->tid;
 
 	info->host = SECSDUP(msg, 0);
-		//strndup(msg->sections[0]->data.string.data, msg->sections[0]->data.string.length);
 	info->user = SECSDUP(msg, 1);
-//	info->user = strndup(msg->sections[1]->data.string.data, msg->sections[1]->data.string.length);
 
 	respmsg = fap_create_msg(msg->tid, sid, info->id, fsid, FAP_HELLO_RESPONSE);
 

@@ -132,6 +132,7 @@ int dcp_validate_sections(struct fsmsg* msg) {
 		case DCP_LOCK:
 			break;
 		case DCP_CREATE:
+			TESTST(ST_FILEINFO);
 			break;
 		case DCP_READ:
 			TESTST(ST_INTEGER);
@@ -168,12 +169,13 @@ int dcp_validate_sections(struct fsmsg* msg) {
 	return 0;
 }
 
+#define EXPECTID(e,id,v) do{if(e&&id!=e) {DEBUGPRINT("unexpected id (" #e "). %lu != %lu", id, e);return v;}}while(0)
 #define EXPECTTYPE(et) do{if(t!=et) return -6;}while(0)
 int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t fsid, enum dcp_msgtype request_type) {
 	if (!msg) return -1;
-	if (msg->tid != tid) return -2;
-	if (sid != 0 && msg->ids[0] != sid) return -3;
-	if (fsid != 0 && msg->ids[1] != fsid) return -4;
+	EXPECTID(tid, msg->tid, -2);
+	EXPECTID(sid, msg->ids[0], -3);
+	EXPECTID(fsid, msg->ids[1], -4);
 
 	if (request_type != 0) {
 		enum dcp_msgtype t;
@@ -185,6 +187,9 @@ int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t f
 				EXPECTTYPE(DCP_HELLO_RESPONSE);
 				break;
 			case DCP_READ:
+				EXPECTTYPE(DCP_FILEINFO);
+				break;
+			case DCP_CREATE:
 				EXPECTTYPE(DCP_FILEINFO);
 				break;
 			default:

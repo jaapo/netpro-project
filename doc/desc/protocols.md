@@ -472,40 +472,40 @@ Locking sequence:
 3. directory server: add file server 1 to the list of file storers
 3. directory server: send **file info** back
 
-##### read
+###### read
 1. file server 1: send **read** message to directory server
 2. directory server: find requested data, traverse recursively if necessary
 3. directory server: send **file info** message
 
-##### update
+###### update
 1. file server 1: send **update** message to directory server
 2. directory server: check that file server 1 has an **x** lock on file
 3. directory server: assign a timestamp to the update, save it to directory
 4. directory server: send updated **file info** to file server 1
 5. directory server: send **invalidate** to all other servers storing the file
 
-##### delete
+###### delete
 1. file server 1: send **delete** message
 2. directory server: check that file server 1 can get an **x** lock on file
 3. directory server: send updated **ok** to file server 1
 4. directory server: send **invalidate** to all other servers storing the file
 
-##### invalidate
+###### invalidate
 1. directory server: send **invalidate** message to servers with replica
 2. directory server: remove servers from file's replica list
 3. file servers: remove local file
 4. file servers: send **ack** back
 
-##### search
+###### search
 1. file server: send **search** message to directory server
 2. directory server: find files matching **search** string (wildcard expression)
 3. directory server: send file server **file info** of matched files
 
-##### replica 1
+###### replica 1
 1. file server 1: download a file from file serve 2
 2. file server 1: send **replica** (action=1) message to directory server
 
-##### replica -1
+###### replica -1
 1. file server 1: too much files, try to remove some
 2. file server 1: send **replica** (action=-1) message to directory server
 3. directory server: 
@@ -515,7 +515,7 @@ Locking sequence:
 	- remove local file, if **ok** received
 	- else find another file file to remove
 
-##### get replicas
+###### get replicas
 1. file server 1: client asks for file, no local replica
 2. file server 1: send **get replicas** message to directory server
 3. directory server: send **file replicas** message to file server 1

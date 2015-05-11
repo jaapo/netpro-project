@@ -122,7 +122,7 @@ int readval(const char *buf, int len, char **ptr, int readlen, void *dst) {
 	}
 }
 
-#define TRY(expr) do {int ret = (expr);DEBUGPRINT("   %d", ret);len+=ret;if(ret==0) goto fail;}while(0)
+#define TRY(expr) do {int ret = (expr);DEBUGPRINT("   %d", ret);len+=ret;if(ret<=0) goto fail;}while(0)
 struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 	struct fsmsg *msg;
 	int len = 0; //used in macro
@@ -180,26 +180,35 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 			case ST_INTEGER:
 				TRY(read(sd, &s->data.integer, sizeof(s->data.integer)));
 				NTOHLTHIS(s->data.integer);
+				DEBUGPRINT("ST_INTGER, value: %d", s->data.integer);
 				break;
 			case ST_STRING:
 				//read length
 				TRY(read(sd, &s->data.string.length, sizeof(s->data.string.length)));
 				NTOHLTHIS(s->data.string.length);
+				DEBUGPRINT("ST_STRING, len: %d", s->data.string.length);
 
 				//read data
-				s->data.string.data = malloc(s->data.string.length);
-				TRY(read(sd, s->data.string.data, s->data.string.length));
+				if (s->data.string.length > 0) {
+					s->data.string.data = malloc(s->data.string.length);
+					TRY(read(sd, s->data.string.data, s->data.string.length));
+					DEBUGPRINT("ST_STRING, val: %.*s", s->data.string.length, s->data.string.data);
+				}
 				break;
 			case ST_BINARY:
 				//read length
 				TRY(read(sd, &s->data.binary.length, sizeof(s->data.binary.length)));
 				NTOHLTHIS(s->data.binary.length);
+				DEBUGPRINT("ST_BINARY, len: %d", s->data.binary.length);
 
 				//read data
-				s->data.binary.data = malloc(s->data.binary.length);
-				TRY(read(sd, s->data.binary.data, s->data.binary.length));
+				if (s->data.binary.length > 0) {
+					s->data.binary.data = malloc(s->data.binary.length);
+					TRY(read(sd, s->data.binary.data, s->data.binary.length));
+				}
 				break;
 			case ST_FILEINFO:
+				DEBUGPRINT("ST_FILEINFO%s", "");
 				fi = &s->data.fileinfo;
 				//file type byte
 				TRY(read(sd, &fi->type, sizeof(fi->type)));

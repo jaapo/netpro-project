@@ -40,6 +40,7 @@ static char *cwd;
 #define ERRFAIL(x,e)do {if((x)!=e)exit(1);} while(0)
 
 int main(int argc, char* argv[], char* envp[]) {
+	srandom(3);
 	add_config_param("file_server", &server);
 	add_config_param("log_file", &logpath);
 	read_config(CONF_FILE);
@@ -93,7 +94,7 @@ void start_connect() {
 
 #define CHECKCMD_ARGS(cmdstr, fun) \
 	if (!strncmp(cmdstr " ", command, MIN(len, sizeof(cmdstr " ") - 1))) {\
-		fun(command + sizeof(cmdstr " ") - 1, len - sizeof(cmdstr " ") - 1);\
+		fun(command + sizeof(cmdstr " ") - 1, len - (sizeof(cmdstr " ") - 1));\
 	} else
 
 #define CHECKCMD_NOARGS(cmdstr, fun) \
@@ -172,8 +173,12 @@ void list_dir(char *args, int arglen) {
 
 void new_file(char *args, int arglen) {
 	int ret;
-	char *filename = strndup(args, arglen);
-	ret = fap_create(fapsd, cid, args);
+	char *filename = malloc(arglen + strlen(cwd));
+	args[arglen-1] = '\0';
+	filename[0] = '\0';
+	strcat(filename, cwd);
+	strcat(filename, args);
+	ret = fap_create(fapsd, cid, filename);
 	free(filename);
 	if (ret < 0) {
 		printf("error\n");

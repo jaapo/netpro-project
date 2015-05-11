@@ -32,6 +32,7 @@ static int fsrvcnt = 0;
 static struct node *dirroot;
 
 int main(int argc, char* argv[], char* envp[]) {
+	srandom(1);
 	char *tmp;
 
 	conffile = read_args(argc, argv, "/etc/dfs_dirserv.conf");
@@ -114,7 +115,7 @@ void serve_fileserver(struct fileserv_info *info) {
 		if (!msg) return;
 		ret = dcp_validate_sections(msg);
 		if (ret < 0) {
-			dcp_send_error(info->sd, msg->tid, info->id, ERR_MSG, "");
+			dcp_send_error(info->sd, msg->tid, info->id, ERR_MSG, "section validation error");
 			continue;
 		}
 		info->lasttid = msg->tid;
@@ -124,6 +125,9 @@ void serve_fileserver(struct fileserv_info *info) {
 		switch ((enum dcp_msgtype) msg->msg_type) {
 			case DCP_READ:
 				read_dir(info, SECI(msg, 0), SECSDUP(msg, 1));
+				break;
+			case DCP_CREATE:
+				create_file(info, &SECF(msg, 0));
 				break;
 			default:
 				DEBUGPRINT("%s", "message type serving not implemented yet");
@@ -166,6 +170,41 @@ void read_dir(struct fileserv_info *info, int recurse, char *path) {
 	free(path);
 }
 
+void create_file(struct fileserv_info *info, struct fileinfo_sect *fi) {
+	struct fsmsg *msg;
+	union section_data data;
+	int ret;
+	char *path = strndup(fi->path, fi->pathlen);
+
+	struct node *n = dir_find_node(path, 1);
+	if (n != NULL) {
+		dcp_send_error(info->sd, info->lasttid, info->id, ERR_EXISTS, "file already exists");
+		free(path);
+		return;
+	}
+	n = add_node(path);
+
+	msg = dcp_create_msg(info->lasttid, info->id, fsid, DCP_FILEINFO);
+	
+	memset(&data, '\0', sizeof(data));
+	data.integer = 1;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+
+	memset(&data, '\0', sizeof(data));
+	data.fileinfo.path = n->name;
+	data.fileinfo.pathlen = strlen(n->name);
+	data.fileinfo.username = "user";
+	data.fileinfo.usernamelen = 4;
+	fsmsg_add_section(msg, ST_FILEINFO, &data);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(info->sd, msg, DCP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
+
+	fsmsg_free(msg);
+	free(path);
+}
+
 ////////////////////////XXX XXX XXX XXX XXX
 
 struct node *dir_init() {
@@ -175,7 +214,7 @@ struct node *dir_init() {
 	return root;
 }
 
-void add_node(const char *path) {
+struct node *add_node(const char *path) {
 	struct node *n, *p;
 	n = calloc(1, sizeof(struct node));
 	n->name = strdup(strrchr(path, '/')+1);
@@ -183,6 +222,7 @@ void add_node(const char *path) {
 	p = dir_find_node(path, 0);
 	//XXX bad
 	add_child(p, n);
+	return n;
 }
 
 void add_child(struct node *p, struct node *c) {
