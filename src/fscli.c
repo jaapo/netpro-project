@@ -112,9 +112,8 @@ void prompt_loop() {
 		len = readline(command, STDIN_FILENO, MAX_LINE);
 		if (len == 0) client_quit();
 
-		CHECKCMD_ARGS("cd", change_dir)
+		CHECKCMD_ARGS("cd", NOT_IMPLEMENTED)
 		CHECKCMD_NOARGS("pwd", working_dir)
-		CHECKCMD_ARGS("ls", list_dir)
 		CHECKCMD_NOARGS("ls", list_dir)
 		CHECKCMD_ARGS("ls", NOT_IMPLEMENTED)
 		CHECKCMD_ARGS("cat", NOT_IMPLEMENTED)
@@ -124,6 +123,7 @@ void prompt_loop() {
 		CHECKCMD_ARGS("mkdir", NOT_IMPLEMENTED)
 		CHECKCMD_ARGS("cp", NOT_IMPLEMENTED)
 		CHECKCMD_ARGS("find", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("touch", new_file)
 		CHECKCMD_NOARGS("quit", client_quit)
 		printf("unknown command\n");
 	}
@@ -141,39 +141,12 @@ void client_quit() {
 	exit(0);
 }
 
-void change_dir(char *args, int arglen) {
-	char *dir;
-	int ret, i;
-	struct fileinfo_sect *files = NULL;
-
-	ret = fap_list(fapsd, cid, 1, cwd, &files);
-
-	if (ret < 0) {
-		printf("change_dir listing error\n");
-		return;
-	}
-
-	dir = strtok(args, "\n ");
-	for (i=0;i<ret;i++) {
-		if (files[i].type==TYPEDIR && !strncmp(files[i].path, dir, files[i].pathlen)) {
-				break;
-		}
-	}
-
-	if (i==ret) {
-		printf("dir %s not found\n", dir);
-		return;
-	}
-
-	strcpy(cwd, dir);
-}
-
 void working_dir(char *args, int arglen) {
 	printf("%s\n", cwd);
 }
 
 void list_dir(char *args, int arglen) {
-	int ret, i;
+	int ret;
 	struct fileinfo_sect *files = NULL;
 
 	ret = fap_list(fapsd, cid, 1, cwd, &files);
@@ -183,21 +156,28 @@ void list_dir(char *args, int arglen) {
 		return;
 	}
 
-	for(i=0;i<ret;i++) {
-		char modtime[128];
-		strftime(modtime, 128, "%F %T %z ", localtime((time_t*) &files[i].modified));
-		char *name, filetype;
+	for(int i=0;i<ret;i++) {
+		char *name;
 		int namelen;
 
-		name = files[i].path;//(char *) memrchr(files[i].path, '/', files[i].pathlen) + 1;
-		namelen = files[i].pathlen;//files[i].pathlen - (name - files[i].path) - 1;
-
-		filetype = files[i].type==1?'f':'d';
+		name = files[i].path;
+		namelen = files[i].pathlen;
 
 		// modified user size type name
-		printf("%s %.*s %6u %c %.*s\n", modtime, files[i].usernamelen, files[i].username, files[i].size, filetype, namelen, name);
+		printf("%.*s ", namelen, name);
 	}
 
-	printf("%d files\n", i);
-
+	printf("%s%d files\n", ret?"\n":"", ret);
 }
+
+void new_file(char *args, int arglen) {
+	int ret;
+	char *filename = strndup(args, arglen);
+	ret = fap_create(fapsd, cid, args);
+	free(filename);
+	if (ret < 0) {
+		printf("error\n");
+		return;
+	}
+}
+

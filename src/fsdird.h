@@ -13,6 +13,7 @@ void read_dir(struct fileserv_info *info, int recurse, char *path);
 //directory structures
 struct node {
 	char *name;
+	char *user;
 	struct node *children;
 	struct node *next;
 };

@@ -171,6 +171,49 @@ int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct filein
 	return count;
 }
 
+int fap_create(int sd, uint64_t cid, char *filename) {
+	struct fsmsg *msg;
+	uint64_t tid = nexttid();
+	int ret;
+
+	msg = fap_create_msg(tid, sid, cid, fsid, FAP_COMMAND);
+	
+	union section_data data;
+
+	data.integer = (int) FAP_CMD_CREATE;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+
+	data.string.length = strlen(filename);
+	data.string.data = filename;
+	fsmsg_add_section(msg, ST_STRING, &data);
+
+	data.integer = 1;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
+	fsmsg_free(msg);
+
+	msg = fsmsg_from_socket(sd, FAP);
+	ret = fap_check_response(msg, tid, sid, cid, fsid, FAP_COMMAND);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response, error: %d\n", ret);
+		return ret;
+	}
+	ret = fap_validate_sections(msg);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response sections, error: %d\n", ret);
+		return ret;
+	}
+	
+	if (SECI(msg, 1) != FAP_OK) {
+		return -1;
+	}
+	return 0;
+}
+
 int fap_accept(struct client_info *info) {
 	struct fsmsg *msg, *respmsg;
 	int ret;
@@ -351,7 +394,10 @@ int fap_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t c
 
 	enum fap_type t;
 	t = msg->msg_type;
-	if (t == FAP_ERROR) return -6;
+	if (t == FAP_ERROR) {
+		fprintf(stderr, "received error from server: %.*s\n", SECS(msg, 1).length, SECS(msg, 1).data);
+		return -6;
+	}
 
 	if (request_type != 0) {
 		switch (request_type) {

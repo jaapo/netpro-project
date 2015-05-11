@@ -49,6 +49,7 @@ int fap_open(const struct addrinfo *serv_ai, uint64_t *cid, char **servername, i
 uint64_t fap_client_quit(int sd, uint64_t cid);
 int fap_client_wait_ok(int sd, uint64_t tid);
 int fap_list(int sd, uint64_t cid, int recurse, char *current_dir, struct fileinfo_sect **files);
+int fap_create(int sd, uint64_t cid, char *filename);
 
 //server functions
 int fap_accept(struct client_info *info);

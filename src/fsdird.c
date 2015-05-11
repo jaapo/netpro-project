@@ -151,7 +151,7 @@ void read_dir(struct fileserv_info *info, int recurse, char *path) {
 		SECI(msg, 0)++;
 		data.fileinfo.path = n->name;
 		data.fileinfo.pathlen = strlen(n->name);
-		data.fileinfo.username = "aaro";
+		data.fileinfo.username = "user";
 		data.fileinfo.usernamelen = 4;
 		fsmsg_add_section(msg, ST_FILEINFO, &data);
 		n=n->next;

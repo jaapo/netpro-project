@@ -156,6 +156,7 @@ void serve_client(struct client_info *info) {
 				cmd = SECI(msg, 0);
 				switch ((enum fap_commands) cmd) {
 					case FAP_CMD_CREATE:
+						create_file(info, SECSDUP(msg, 1));
 						break;
 					case FAP_CMD_OPEN:
 						break;
