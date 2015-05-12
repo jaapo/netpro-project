@@ -1,0 +1,30 @@
+fsdird
+=======
+
+Distributed filesystem directory server
+
+synopsis
+--------
+
+fsdird [-conf <file>]
+
+description
+-----------
+
+This program is used to store file metadata in distributed filesystem. File servers connect to it and ask information about files from it. File servers also edit this metadata. Directory server can tell the file server, where a file can be found.
+
+options
+-------
+
+Program uses a configuration file, /etc/dfs_dirserv.conf. Alternate path to configuration file can be given with `-conf` argument.
+
+see also
+--------
+
+fsservd, fscli
+
+authors
+-------
+
+Aaro Lehikoinen (aaro.lehikoinen@cs.helsinki.fi)
+

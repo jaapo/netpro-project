@@ -1,0 +1,30 @@
+fsservd
+=======
+
+Distributed filesystem file server
+
+synopsis
+--------
+
+fsservd [-conf <file>]
+
+description
+-----------
+
+This program is used to store files and serve them to clients. It requires a directory server to operate, and can work with other file servers. File server also connect to other file servers to get files from them.
+
+options
+-------
+
+Program uses a configuration file, /etc/dfs_fileserv.conf. Alternate path to configuration file can be given with `-conf` argument.
+
+see also
+--------
+
+fsdird, fscli
+
+authors
+-------
+
+Aaro Lehikoinen (aaro.lehikoinen@cs.helsinki.fi)
+

@@ -1,0 +1,39 @@
+fscli
+=====
+
+Distributed filesystem client
+
+synopsis
+--------
+
+fscli
+
+description
+-----------
+
+This program can be used to access and maipulate files saved to distributed filesystem. When started, it connects to a file server described in its configuration file `conf/dfs_client.conf`.
+
+Client shows a prompt and user can enter commands to it.
+
+options
+-------
+
+Program takes no arguments, it can be configured using the configuration file in `conf/dfs_client.conf`
+
+commands
+--------
+`ls` - list files in file system
+`touch <file>` - create empty file
+`edit <file>` - edit file contents
+`cat <file>` - print file contents
+
+see also
+--------
+
+fsdird, fsservd
+
+authors
+-------
+
+Aaro Lehikoinen (aaro.lehikoinen@cs.helsinki.fi)
+
