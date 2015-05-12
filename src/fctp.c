@@ -84,3 +84,66 @@ int fctp_connect(char *host) {
 
 	return sd;
 }
+
+void fctp_server(char *dataloc) {
+	int listensd, tmpsd, ret;
+
+	listensd = start_listen(FCTPPORT);
+
+	for(;;) {
+		struct fsmsg *msg = NULL;
+		int fd = -1;
+		char *localpath = NULL;
+		char *path = NULL;
+		NO_INTR(ret = accept(listensd, NULL, NULL));
+		syscallerr(ret, "%s accept()", __func__);
+		tmpsd = ret;
+
+		msg = fsmsg_from_socket(tmpsd, FCTP);
+		//XXX no section validation, or other checking yet
+		if (!msg || msg->msg_type != FCTP_DOWNLOAD) {
+			goto nextround;
+		}
+
+		path = SECSDUP(msg, 0);
+		localpath = malloc(strlen(dataloc) + strlen(path) + 1);
+		strcpy(localpath, dataloc);
+		strcat(localpath, path);
+
+		fd = open(localpath, O_CREAT|O_WRONLY);
+		if (fd < 0) {
+			fctp_send_error(tmpsd, msg->tid, ERR_FILENOTFOUND, "no local file found");
+		} else {
+			write(fd, SECB(msg, 0).data, SECB(msg, 0).length);
+		}
+
+nextround:
+		fsmsg_free(msg);
+		close(tmpsd);
+		close(fd);
+		if (localpath) free(localpath);
+		if (path) free(path);
+	}
+}
+
+void fctp_send_error(int sd, uint64_t tid, int errorn, char *errstr) {
+	struct fsmsg *msg;
+	union section_data data;
+	int ret;
+	
+	msg = fctp_create_msg(tid, sid, fsid, FCTP_ERROR);
+
+	data.integer = errorn;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+
+	data.string.length = strlen(errstr);
+	data.string.data = errstr;
+	fsmsg_add_section(msg, ST_STRING, &data);
+
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+
+	ret = fsmsg_send(sd, msg, FCTP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
+	fsmsg_free(msg);
+}
