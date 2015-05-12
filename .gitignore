@@ -3,3 +3,4 @@ doc/**/*.pdf
 doc/**/*.html
 src/bin/**
 src/data/files/**
+src/data/files2/**

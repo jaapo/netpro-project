@@ -497,7 +497,7 @@ void ask_file(char *path) {
 		return;
 	}
 
-	for(int i=0;i<SECI(msg, 1);i++) {
+	for(int i=0;i<SECI(msg, 0);i++) {
 		if (fctp_get_file(SECSDUP(msg, i+1), path, dataloc)) {
 			break;
 		}

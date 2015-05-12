@@ -143,7 +143,7 @@ void* serve_fileserver(void *arg) {
 			case DCP_UPDATE:
 				update_file(info, SECSDUP(msg, 0));
 				break;
-			case DCP_REPLICA_STATUS:
+			case DCP_GET_REPLICAS:
 				replica_status(info, SECSDUP(msg, 0));
 				break;
 			default:

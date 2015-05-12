@@ -266,7 +266,7 @@ Message sections and numbers:
 
 - file replicas (11)
 
-	Sections: hostnames (arbitrary number of strings)
+	Sections: host count (**n**) (integer), hostnames (**n** strings)
 
 - get file replicas (12)
 

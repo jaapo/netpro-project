@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <fcntl.h>
@@ -77,12 +78,13 @@ int fctp_connect(char *host) {
 	while (ai) {
 		sd = socket(ai->ai_family, ai->ai_socktype, 0);
 		NO_INTR(ret = connect(sd, ai->ai_addr, ai->ai_addrlen));
-		if (ret > 0) return ret;
+		if (ret == 0) return sd;
+		close(sd);
 
 		ai = ai->ai_next;
 	}
 
-	return sd;
+	return -1;
 }
 
 void *fctp_server(void *arg) {
@@ -96,27 +98,48 @@ void *fctp_server(void *arg) {
 		int fd = -1;
 		char *localpath = NULL;
 		char *path = NULL;
+		uint64_t tid;
 		NO_INTR(ret = accept(listensd, NULL, NULL));
 		syscallerr(ret, "%s accept()", __func__);
 		tmpsd = ret;
+		DEBUGPRINT("accepted FCTP connection, tmpsd=%d", tmpsd);
 
 		msg = fsmsg_from_socket(tmpsd, FCTP);
 		//XXX no section validation, or other checking yet
 		if (!msg || msg->msg_type != FCTP_DOWNLOAD) {
+			DEBUGPRINT("received FTCP message, not FCTP_DOWNLOAD, but %d", msg->msg_type);
 			goto nextround;
 		}
 
 		path = SECSDUP(msg, 0);
+		tid = msg->tid;
+
+		fsmsg_free(msg);
+
 		localpath = malloc(strlen(dataloc) + strlen(path) + 1);
 		strcpy(localpath, dataloc);
 		strcat(localpath, path);
 
-		fd = open(localpath, O_CREAT|O_WRONLY);
+		fd = open(localpath, O_RDONLY);
 		if (fd < 0) {
-			fctp_send_error(tmpsd, msg->tid, ERR_FILENOTFOUND, "no local file found");
-		} else {
-			write(fd, SECB(msg, 0).data, SECB(msg, 0).length);
+			fctp_send_error(tmpsd, tid, ERR_FILENOTFOUND, "no local file found");
+			goto nextround;
 		}
+
+		struct stat st;
+		fstat(fd, &st);
+		char *buffer = malloc(st.st_size);
+		union section_data data;
+		memset(&data, 0, sizeof(data));
+		read(fd, buffer, st.st_size);
+		msg = fctp_create_msg(tid, sid, fsid, FCTP_OK);
+		data.binary.length = st.st_size;
+		data.binary.data = buffer;
+		fsmsg_add_section(msg, ST_BINARY, &data);
+		fsmsg_add_section(msg, ST_NONEXT, NULL);
+
+		fsmsg_send(tmpsd, msg, FCTP);
+		free(buffer);
 
 nextround:
 		fsmsg_free(msg);
