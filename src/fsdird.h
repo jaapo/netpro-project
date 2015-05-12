@@ -4,7 +4,7 @@
 
 void go_daemon();
 void do_dcp_server();
-void serve_fileserver(struct fileserv_info *info);
+void* serve_fileserver(void *arg);
 
 int register_fsrv(int fsrvsd, uint64_t sid);
 uint64_t nextsid();

@@ -45,9 +45,9 @@ int fsmsg_to_buffer(struct fsmsg *msg, char **buffer, enum fsmsg_protocol protoc
 	int idcount;
 	switch (protocol) {
 		case FAP:
-		case FCTP:
 			idcount = 3;
 			break;
+		case FCTP:
 		case DCP:
 			idcount = 2;
 			break;
@@ -137,9 +137,9 @@ struct fsmsg* fsmsg_from_socket(int sd, enum fsmsg_protocol protocol) {
 	int idcount;
 	switch (protocol) {
 		case FAP:
-		case FCTP:
 			idcount = 3;
 			break;
+		case FCTP:
 		case DCP:
 			idcount = 2;
 			break;
@@ -271,9 +271,9 @@ struct fsmsg* fsmsg_create(enum fsmsg_protocol protocol) {
 	int idcount;
 	switch (protocol) {
 		case FAP:
-		case FCTP:
 			idcount = 3;
 			break;
+		case FCTP:
 		case DCP:
 			idcount = 2;
 			break;

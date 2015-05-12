@@ -7,4 +7,5 @@ void list_dir(char *args, int arglen);
 void client_quit();
 void new_file(char *args, int arglen);
 void edit_file(char *args, int arglen);
+void read_file(char *args, int arglen);
 

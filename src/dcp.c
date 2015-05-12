@@ -78,10 +78,10 @@ int dcp_accept(struct fileserv_info *info) {
 		return -1;
 	}
 
-	info->name = strndup(msg->sections[0]->data.string.data, msg->sections[0]->data.string.length);
-	info->max_capacity = msg->sections[1]->data.integer;
-	info->disk_usage = msg->sections[2]->data.integer;
-	info->file_count = msg->sections[3]->data.integer;
+	info->name = strndup(SECS(msg, 0).data, SECS(msg, 0).length);
+	info->max_capacity = SECI(msg, 1);
+	info->disk_usage = SECI(msg, 2);
+	info->file_count = SECI(msg, 3);
 
 	respmsg = dcp_create_msg(msg->tid, info->id, fsid, DCP_HELLO_RESPONSE);
 
@@ -152,6 +152,10 @@ int dcp_validate_sections(struct fsmsg* msg) {
 		case DCP_REPLICA_STATUS:
 			break;
 		case DCP_GET_REPLICAS:
+			TESTST(ST_INTEGER);
+			for (int j=0;j<s[0]->data.integer;j++) {
+				TESTST(ST_STRING);
+			}
 			break;
 		case DCP_DISCONNECT:
 			break;
@@ -195,6 +199,9 @@ int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t f
 				break;
 			case DCP_UPDATE:
 				EXPECTTYPE(DCP_FILEINFO);
+				break;
+			case DCP_GET_REPLICAS:
+				EXPECTTYPE(DCP_REPLICA_STATUS);
 				break;
 			default:
 				fprintf(stderr, "%s: type %d not implemented\n", __func__, request_type);

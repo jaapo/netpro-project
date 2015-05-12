@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 
 #define SYSLOGPRIO (LOG_USER | LOG_ERR)
 
@@ -44,8 +45,6 @@ int main(int argc, char* argv[], char* envp[]) {
 	minreplicas = atoi(tmp);
 
 	dirroot = dir_init();
-	add_node("/lol");
-	add_node("/asd");
 
 	go_daemon();
 
@@ -62,11 +61,12 @@ void go_daemon() {
 void do_dcp_server() {
 	int fsrvsd, ret;
 	struct fileserv_info *fsrvinfo;
-	uint64_t server_id = nextsid();
+	uint64_t server_id;
 	struct sockaddr *fssrvaddr = NULL;
 	socklen_t fssrvaddrlen;
 
 	for (;;) {
+		server_id = nextsid();
 		NO_INTR(fsrvsd = accept(listensd, fssrvaddr, &fssrvaddrlen));
 		syscallerr(fsrvsd, "%s: accept() failed", __func__);
 		
@@ -86,32 +86,34 @@ void do_dcp_server() {
 		}
 
 		SYSLOG(SYSLOGPRIO, "connection from %s (server id: %lu)", fsrvinfo->name, fsrvinfo->id);
-		serve_fileserver(fsrvinfo);
+		//new thread here
+		ret = pthread_create(&fsrvinfo->thread, NULL, serve_fileserver, (void*) fsrvinfo);
+		SYSLOG(LOG_INFO, "thread started, id=%lu", fsrvinfo->thread);
 	}
 }
 
-//XXX other also
 int register_fsrv(int fsrvsd, uint64_t sid) {
-	int i;
 	if (sid == 0 || fsrvcnt > MAX_FSERVERS) return -1;
-	for (i=0;i<MAX_FSERVERS;i++) {
+	for (int i=0;i<MAX_FSERVERS;i++) {
 		if (fileservers[i].id == 0) {
 			fileservers[i].id = sid;
 			fileservers[i].sd = fsrvsd;
 			fsrvcnt++;
-			break;
+			return i;
 		}
 	}
-	return i;
+	return -1;
 }
 
-void serve_fileserver(struct fileserv_info *info) {
+void* serve_fileserver(void *arg) {
+	struct fileserv_info *info;
 	struct fsmsg *msg;
 	int ret;
+	info = (struct fileserv_info *) arg;
 
 	for(;;) {
 		msg = fsmsg_from_socket(info->sd, DCP);
-		if (!msg) return;
+		if (!msg) return NULL;
 		ret = dcp_validate_sections(msg);
 		if (ret < 0) {
 			dcp_send_error(info->sd, msg->tid, info->id, ERR_MSG, "section validation error");
@@ -135,6 +137,8 @@ void serve_fileserver(struct fileserv_info *info) {
 				DEBUGPRINT("%s", "message type serving not implemented yet");
 		}
 	}
+
+	return NULL;
 }
 
 uint64_t nextsid() {

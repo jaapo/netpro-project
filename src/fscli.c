@@ -108,7 +108,7 @@ void prompt_loop() {
 	int len;
 
 	for (;;) {
-		printf("> ");
+		printf("\n> ");
 		fflush(stdout);
 		len = readline(command, STDIN_FILENO, MAX_LINE);
 		if (len == 0) client_quit();
@@ -117,7 +117,7 @@ void prompt_loop() {
 		CHECKCMD_NOARGS("pwd", working_dir)
 		CHECKCMD_NOARGS("ls", list_dir)
 		CHECKCMD_ARGS("ls", NOT_IMPLEMENTED)
-		CHECKCMD_ARGS("cat", NOT_IMPLEMENTED)
+		CHECKCMD_ARGS("cat", read_file)
 		CHECKCMD_ARGS("edit", edit_file)
 		CHECKCMD_ARGS("rm", NOT_IMPLEMENTED)
 		CHECKCMD_ARGS("rmdir", NOT_IMPLEMENTED)
@@ -200,7 +200,23 @@ void edit_file(char *args, int arglen) {
 	len = readline(data, STDIN_FILENO, MAX_LINE);
 	if (len <= 0) return;
 
-	ret = fap_write(fapsd, datasd, cid, filename, data, len);
+	ret = fap_write_file(fapsd, datasd, cid, filename, data, len);
+	free(filename);
+	if (ret < 0) {
+		printf("error\n");
+		return;
+	}
+}
+
+void read_file(char *args, int arglen) {
+	int ret;
+	char *filename = malloc(arglen + strlen(cwd));
+	args[arglen-1] = '\0';
+	filename[0] = '\0';
+	strcat(filename, cwd);
+	strcat(filename, args);
+
+	ret = fap_read_file(fapsd, datasd, cid, filename);
 	free(filename);
 	if (ret < 0) {
 		printf("error\n");

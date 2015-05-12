@@ -244,7 +244,7 @@ int fap_create(int sd, uint64_t cid, char *filename) {
 	return 0;
 }
 
-int fap_write(int sd, int datasd, uint64_t cid, char *filename, char* data, int datalen) {
+int fap_write_file(int sd, int datasd, uint64_t cid, char *filename, char* data, int datalen) {
 	struct fsmsg *msg;
 	uint64_t tid = nexttid();
 	int ret;
@@ -291,6 +291,53 @@ int fap_write(int sd, int datasd, uint64_t cid, char *filename, char* data, int 
 	if (SECI(msg, 0) != FAP_OK) {
 		return -1;
 	}
+	return 0;
+}
+
+int fap_read_file(int sd, int datasd, uint64_t cid, char *filename) {
+	struct fsmsg *msg;
+	uint64_t tid = nexttid();
+	int ret;
+
+	msg = fap_create_msg(tid, sid, cid, fsid, FAP_COMMAND);
+	
+	union section_data sdata;
+
+	sdata.integer = (int) FAP_CMD_READ;
+	fsmsg_add_section(msg, ST_INTEGER, &sdata);
+
+	sdata.string.length = strlen(filename);
+	sdata.string.data = filename;
+	fsmsg_add_section(msg, ST_STRING, &sdata);
+
+	//offset and bytecount (0 for all)
+	sdata.integer = 0;
+	fsmsg_add_section(msg, ST_INTEGER, &sdata);
+	sdata.integer = 0;
+	fsmsg_add_section(msg, ST_INTEGER, &sdata);
+
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+
+	ret = fsmsg_send(sd, msg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, sd);
+	
+	fsmsg_free(msg);
+
+	msg = fsmsg_from_socket(sd, FAP);
+	ret = fap_check_response(msg, tid, sid, cid, fsid, FAP_COMMAND);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response, error: %d\n", ret);
+		return ret;
+	}
+	ret = fap_validate_sections(msg);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response sections, error: %d\n", ret);
+		return ret;
+	}
+	
+	DEBUGPRINT("reading %d bytes from datasd=%d to stdout", SECI(msg, 1), datasd);
+	recvfile(datasd, STDOUT_FILENO, SECI(msg, 1));
+	syscallerr(ret, "error recieving file %s (%d bytes)", filename, SECI(msg, 1));
 	return 0;
 }
 

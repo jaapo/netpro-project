@@ -27,7 +27,7 @@ bin/fscli: fscli.c fscli.h bin/fap.o bin/util.o | bin
 	$(CC) $(CFLAGS) -o bin/fscli fscli.c bin/fap.o bin/util.o bin/netutil.o bin/protomsg.o
 
 bin/fsdird: fsdird.c fsdird.h bin/dcp.o bin/util.o bin/netutil.o | bin
-	$(CC) $(CFLAGS) -o bin/fsdird fsdird.c bin/dcp.o bin/util.o bin/protomsg.o bin/netutil.o
+	$(CC) $(CFLAGS) -pthread -o bin/fsdird fsdird.c bin/dcp.o bin/util.o bin/protomsg.o bin/netutil.o
 
 bin/fsservd: fsservd.c fsservd.h bin/dcp.o bin/fctp.o bin/fap.o bin/netutil.o | bin
 	$(CC) $(CFLAGS) -o bin/fsservd fsservd.c bin/dcp.o bin/fctp.o bin/fap.o bin/protomsg.o bin/util.o bin/netutil.o

@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <pthread.h>
 
 enum dcp_msgtype {
 	DCP_HELLO = 1,
@@ -32,6 +33,7 @@ struct fileserv_info {
 	int max_capacity;
 	int disk_usage;
 	int file_count;
+	pthread_t thread;
 };
 
 int dcp_open(struct addrinfo *fsrv_ai, uint64_t *server_id, int32_t capacity, int32_t usage, int32_t filecnt);

@@ -1,5 +1,6 @@
 #include "protomsg.h"
 #include "fap.h"
+#include "fctp.h"
 #include "dcp.h"
 #include "fsservd.h"
 #include "util.h"
@@ -102,8 +103,6 @@ void do_fap_server() {
 	struct sockaddr *cliaddr = NULL;
 	socklen_t cliaddrlen;
 
-	//fap_init_server();
-
 	for (;;) {
 		NO_INTR(clisd = accept(listensd, cliaddr, &cliaddrlen));
 		if (clisd < 0 && errno == EINTR) continue;
@@ -169,6 +168,7 @@ void serve_client(struct client_info *info) {
 					case FAP_CMD_STAT:
 						break;
 					case FAP_CMD_READ:
+						serve_file(info, SECSDUP(msg, 1));
 						break;
 					case FAP_CMD_WRITE:
 						write_file(info, SECSDUP(msg, 1), SECI(msg, 2));
@@ -393,7 +393,7 @@ void write_file(struct client_info *info, char *path, int length) {
 	DEBUGPRINT("dataloc: %s, dirmsg->path: %s", dataloc, path);
 	strcpy(localpath, dataloc);
 	strcat(localpath, path);
-	NO_INTR(ret = open(localpath, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR));
+	NO_INTR(ret = open(localpath, O_CREAT|O_APPEND, S_IRUSR|S_IWUSR));
 	syscallerr(ret, "unable to create/open local file %s", localpath);
 	lfd = ret;
 	ret = recvfile(info->datasd, lfd, length);
@@ -415,4 +415,88 @@ cleanup:
 	fsmsg_free(dirmsg);
 	fsmsg_free(climsg);
 	free(path);
+}
+
+void serve_file(struct client_info *info, char *path) {
+	struct fsmsg *climsg;
+	climsg = NULL;
+	struct stat st;
+	memset(&st, 0, sizeof(st));
+	union section_data data;
+	int ret, fd;
+
+	char *localpath = malloc(strlen(dataloc) + strlen(path) + 1);
+	strcpy(localpath, dataloc);
+	strcat(localpath, path);
+
+	NO_INTR(ret = open(localpath, O_RDONLY));
+	if (ret < 0 && errno == ENOENT) {
+		ask_file(path);
+		NO_INTR(ret = open(localpath, O_RDONLY));
+	}
+	syscallerr(ret, "unable to open file %s for reading", localpath);
+
+	fd = ret;
+	ret = fstat(fd, &st);
+	syscallerr(ret, "unable to fstat() file %s", localpath);
+	free(localpath);
+
+	climsg = fap_create_msg(info->lasttid, sid, info->id, fsid, FAP_RESPONSE);
+	data.integer = FAP_DATAOUT;
+	fsmsg_add_section(climsg, ST_INTEGER, &data);
+	data.integer = st.st_size;
+	fsmsg_add_section(climsg, ST_INTEGER, &data);
+	fsmsg_add_section(climsg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(info->sd, climsg, FAP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
+
+	sendfile(info->datasd, fd, NULL, st.st_size);
+	close(fd);
+	
+	fsmsg_free(climsg);
+	free(path);
+}
+
+void ask_file(char *path) {
+	int ret;
+	struct fsmsg *msg;
+	uint64_t tid = nexttid();
+	union section_data data;
+	memset(&data, 0, sizeof(data));
+
+	msg = dcp_create_msg(tid, sid, fsid, DCP_GET_REPLICAS);
+	fsmsg_add_section(msg, ST_STRING, &data);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(dssd, msg, DCP);
+	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, dssd);
+
+	fsmsg_free(msg);
+
+	msg = fsmsg_from_socket(dssd, DCP);
+	
+	//check for error
+	ret = dcp_check_response(msg, tid, sid, fsid, DCP_GET_REPLICAS);
+
+	if (ret < 0) {
+		fprintf(stderr, "invalid response to DCP_GET_REPLICAS, error: %d\n", ret);
+		fsmsg_free(msg);
+		return;
+	}
+	
+	ret = dcp_validate_sections(msg);
+	if (ret < 0) {
+		fprintf(stderr, "invalid response (sections) to DCP_GET_REPLICAS, error: %d\n", ret);
+		fsmsg_free(msg);
+		return;
+	}
+
+	for(int i=0;i<SECI(msg, 1);i++) {
+		if (fctp_get_file(SECSDUP(msg, i+1), path, dataloc)) {
+			break;
+		}
+	}
+
+	fsmsg_free(msg);
 }
