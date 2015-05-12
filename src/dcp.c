@@ -150,12 +150,13 @@ int dcp_validate_sections(struct fsmsg* msg) {
 		case DCP_REPLICA_UPDATE:
 			break;
 		case DCP_REPLICA_STATUS:
-			break;
-		case DCP_GET_REPLICAS:
 			TESTST(ST_INTEGER);
 			for (int j=0;j<s[0]->data.integer;j++) {
 				TESTST(ST_STRING);
 			}
+			break;
+		case DCP_GET_REPLICAS:
+			TESTST(ST_STRING);
 			break;
 		case DCP_DISCONNECT:
 			break;
@@ -244,6 +245,25 @@ int dcp_send_fileinfo(struct fileserv_info *srv, struct fileinfo_sect *file) {
 	fsmsg_add_section(msg, ST_INTEGER, &data);
 	data.fileinfo = *file;
 	fsmsg_add_section(msg, ST_FILEINFO, &data);
+	fsmsg_add_section(msg, ST_NONEXT, NULL);
+	
+	ret = fsmsg_send(srv->sd, msg, DCP);
+	fsmsg_free(msg);
+	return ret;
+}
+
+int dcp_send_replica_list(struct fileserv_info *srv, char *address) {
+	struct fsmsg *msg;
+	union section_data data;
+	int ret;
+	msg = dcp_create_msg(srv->lasttid, srv->id, fsid, DCP_REPLICA_STATUS);
+	
+	memset(&data, '\0', sizeof(data));
+	data.integer = 1;
+	fsmsg_add_section(msg, ST_INTEGER, &data);
+	data.string.length = strlen(address);
+	data.string.data = address;
+	fsmsg_add_section(msg, ST_STRING, &data);
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 	
 	ret = fsmsg_send(srv->sd, msg, DCP);

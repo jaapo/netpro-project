@@ -30,6 +30,7 @@ struct fileserv_info {
 	uint64_t lasttid;
 	int sd;
 	char *name;
+	char *address;
 	int max_capacity;
 	int disk_usage;
 	int file_count;
@@ -43,6 +44,7 @@ int dcp_validate_sections(struct fsmsg *msg);
 int dcp_check_response(struct fsmsg *msg, uint64_t tid, uint64_t sid, uint64_t fsid, enum dcp_msgtype request_type);
 void dcp_send_error(int sd, uint64_t tid, uint64_t sid, int errorn, char *errstr);
 int dcp_send_fileinfo(struct fileserv_info *srv, struct fileinfo_sect *file);
+int dcp_send_replica_list(struct fileserv_info *srv, char *address);
 
 //DCP_H
 #endif

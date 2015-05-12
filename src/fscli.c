@@ -1,6 +1,7 @@
 #include "fscli.h"
 #include "fap.h"
 #include "util.h"
+#include "netutil.h"
 
 #include <unistd.h>
 #include <stdio.h>

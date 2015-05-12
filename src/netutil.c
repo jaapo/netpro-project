@@ -6,6 +6,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 int start_listen(int port) {
 	int sd, ret, one = 1;
@@ -36,6 +37,7 @@ int start_listen(int port) {
 
 #define RECVBUFSIZE 1024
 int recvfile(int sd, int fd, int len) {
+	DEBUGPRINT("sd=%d, fd=%d, len=%d", sd, fd, len);
 	char buffer[RECVBUFSIZE];
 	int ret, left;
 	left = len;
@@ -49,4 +51,25 @@ int recvfile(int sd, int fd, int len) {
 	}
 
 	return len;
+}
+
+struct addrinfo *get_server_address(char *hostname, char *servname, FILE *logfile) {
+	int ret;
+
+	struct addrinfo hints, *res;
+	hints.ai_flags = AI_V4MAPPED;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+
+	ret = getaddrinfo(hostname, servname, &hints, &res);
+	if (ret != 0) {
+		if (logfile)
+			logwrite(logfile, "getaddrinfo error: %s", gai_strerror(ret));
+		else
+			syslog(LOG_USER | LOG_ERR, "getaddrinfo error: %s", gai_strerror(ret));
+		return NULL;
+	}
+
+	return res;
 }

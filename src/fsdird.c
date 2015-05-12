@@ -31,6 +31,7 @@ static struct fileserv_info fileservers[MAX_FSERVERS];
 static int fsrvcnt = 0;
 
 static struct node *dirroot;
+static pthread_mutex_t dirlock;
 
 int main(int argc, char* argv[], char* envp[]) {
 	srandom(1);
@@ -46,11 +47,13 @@ int main(int argc, char* argv[], char* envp[]) {
 
 	dirroot = dir_init();
 
+	syscallerr(pthread_mutex_init(&dirlock, NULL), "mutex init failed");
 	go_daemon();
 
 	listensd = start_listen(DCPPORT);
 	do_dcp_server();
 
+	syscallerr(pthread_mutex_destroy(&dirlock), "mutex destroy failed");
 	return 0;
 }
 
@@ -62,12 +65,12 @@ void do_dcp_server() {
 	int fsrvsd, ret;
 	struct fileserv_info *fsrvinfo;
 	uint64_t server_id;
-	struct sockaddr *fssrvaddr = NULL;
-	socklen_t fssrvaddrlen;
+	struct sockaddr fsrvaddr;
+	socklen_t fsrvaddrlen = sizeof(fsrvaddr);
 
 	for (;;) {
 		server_id = nextsid();
-		NO_INTR(fsrvsd = accept(listensd, fssrvaddr, &fssrvaddrlen));
+		NO_INTR(fsrvsd = accept(listensd, &fsrvaddr, &fsrvaddrlen));
 		syscallerr(fsrvsd, "%s: accept() failed", __func__);
 		
 		ret = register_fsrv(fsrvsd, server_id);
@@ -77,6 +80,13 @@ void do_dcp_server() {
 			continue;
 		}
 		fsrvinfo = &fileservers[ret];
+		fsrvinfo->address = malloc(INET6_ADDRSTRLEN);
+		void *addr;
+	 	if (fsrvaddr.sa_family == AF_INET)
+		  addr = &(((struct sockaddr_in*) &fsrvaddr)->sin_addr);
+		else
+			addr = &(((struct sockaddr_in6*) &fsrvaddr)->sin6_addr);
+	 	inet_ntop(fsrvaddr.sa_family, addr, fsrvinfo->address, INET6_ADDRSTRLEN);
 
 		ret = dcp_accept(fsrvinfo);
 		if (ret < 0) {
@@ -85,7 +95,7 @@ void do_dcp_server() {
 			continue;
 		}
 
-		SYSLOG(SYSLOGPRIO, "connection from %s (server id: %lu)", fsrvinfo->name, fsrvinfo->id);
+		SYSLOG(SYSLOGPRIO, "connection from %s (server id: %lu, address: %s)", fsrvinfo->name, fsrvinfo->id, fsrvinfo->address);
 		//new thread here
 		ret = pthread_create(&fsrvinfo->thread, NULL, serve_fileserver, (void*) fsrvinfo);
 		SYSLOG(LOG_INFO, "thread started, id=%lu", fsrvinfo->thread);
@@ -133,6 +143,9 @@ void* serve_fileserver(void *arg) {
 			case DCP_UPDATE:
 				update_file(info, SECSDUP(msg, 0));
 				break;
+			case DCP_REPLICA_STATUS:
+				replica_status(info, SECSDUP(msg, 0));
+				break;
 			default:
 				DEBUGPRINT("%s", "message type serving not implemented yet");
 		}
@@ -155,6 +168,7 @@ void read_dir(struct fileserv_info *info, int recurse, char *path) {
 	data.integer = 0;
 	fsmsg_add_section(msg, ST_INTEGER, &data);
 
+	pthread_mutex_lock(&dirlock);
 	struct node *n = dir_find_node(path, 1);
 	n = n->children;
 	while(n) {
@@ -166,6 +180,8 @@ void read_dir(struct fileserv_info *info, int recurse, char *path) {
 		fsmsg_add_section(msg, ST_FILEINFO, &data);
 		n=n->next;
 	}
+	n = NULL;
+	pthread_mutex_unlock(&dirlock);
 
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 	
@@ -182,6 +198,7 @@ void create_file(struct fileserv_info *info, struct fileinfo_sect *fi) {
 	int ret;
 	char *path = strndup(fi->path, fi->pathlen);
 
+	pthread_mutex_lock(&dirlock);
 	struct node *n = dir_find_node(path, 1);
 	if (n != NULL) {
 		dcp_send_error(info->sd, info->lasttid, info->id, ERR_EXISTS, "file already exists");
@@ -189,6 +206,7 @@ void create_file(struct fileserv_info *info, struct fileinfo_sect *fi) {
 		return;
 	}
 	n = add_node(path);
+	n->fileserv = info;
 
 	msg = dcp_create_msg(info->lasttid, info->id, fsid, DCP_FILEINFO);
 	
@@ -204,6 +222,8 @@ void create_file(struct fileserv_info *info, struct fileinfo_sect *fi) {
 	fsmsg_add_section(msg, ST_FILEINFO, &data);
 	fsmsg_add_section(msg, ST_NONEXT, NULL);
 	
+	pthread_mutex_unlock(&dirlock);
+	
 	ret = fsmsg_send(info->sd, msg, DCP);
 	syscallerr(ret, "%s: fsmsg_send() failed, socket=%d", __func__, info->sd);
 
@@ -215,22 +235,47 @@ void update_file(struct fileserv_info *info, char *path) {
 	struct fileinfo_sect fi;
 	int ret;
 
+	pthread_mutex_unlock(&dirlock);
 	struct node *n = dir_find_node(path, 1);
 	if (!n) {
 		dcp_send_error(info->sd, info->lasttid, info->id, ERR_FILENOTFOUND, "file doesn't exist");
 		free(path);
+		pthread_mutex_unlock(&dirlock);
 		return;
 	}
 
-	//XXX invalidate other replicas
+	n->fileserv = info;
+	//TODO invalidate other replicas
 	
 	fileinfo_from_node(&fi, n);
+	pthread_mutex_unlock(&dirlock);
 	ret = dcp_send_fileinfo(info, &fi);
 	syscallerr(ret, "%s: dcp_send_fileinfo() failed, socket=%d", __func__, info->sd);
 
 	free(path);
 }
-////////////////////////XXX XXX XXX XXX XXX
+
+void replica_status(struct fileserv_info *info, char *path) {
+	pthread_mutex_lock(&dirlock);
+	struct node *n = dir_find_node(path, 1);
+	if (!n) {
+		dcp_send_error(info->sd, info->lasttid, info->id, ERR_FILENOTFOUND, "file doesn't exist");
+		goto done;
+	}
+	
+	//XXX only one file server is stored 
+	if (n->fileserv) {
+		dcp_send_replica_list(info, n->fileserv->address);
+	} else {
+		dcp_send_error(info->sd, info->lasttid, info->id, ERR_FILENOTFOUND, "file doesn't exist");
+		goto done;
+	}
+
+done:
+	free(path);
+	pthread_mutex_unlock(&dirlock);
+}
+//////////////////////// DIRECTORY DATA STRUCTURE THINGS
 
 struct node *dir_init() {
 	struct node *root;

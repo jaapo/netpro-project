@@ -85,7 +85,8 @@ int fctp_connect(char *host) {
 	return sd;
 }
 
-void fctp_server(char *dataloc) {
+void *fctp_server(void *arg) {
+	char *dataloc = (char*) arg;
 	int listensd, tmpsd, ret;
 
 	listensd = start_listen(FCTPPORT);
@@ -124,6 +125,8 @@ nextround:
 		if (localpath) free(localpath);
 		if (path) free(path);
 	}
+
+	return NULL;
 }
 
 void fctp_send_error(int sd, uint64_t tid, int errorn, char *errstr) {

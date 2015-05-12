@@ -39,7 +39,6 @@ int read_config(const char *filename);
 FILE* logopen(const char *logpath);
 void logwrite(FILE *logfile, char *fmtstr, ...);
 
-struct addrinfo *get_server_address(char *hostname, char *servname, FILE *logfile);
 
 char *read_args(int argc, char* argv[], char *defaultval);
 //UTIL_H

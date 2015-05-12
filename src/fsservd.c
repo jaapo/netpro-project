@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
+#include <pthread.h>
 
 #define SYSLOGPRIO (LOG_USER | LOG_ERR)
 
@@ -38,6 +39,8 @@ uint64_t fsid;
 static uint64_t lastcid = 1;
 static int clicnt = 0;
 
+static pthread_t fctp_thread;
+
 static struct client_info clients[MAX_CLIENTS];
 
 int main(int argc, char* argv[], char* envp[]) {
@@ -51,6 +54,8 @@ int main(int argc, char* argv[], char* envp[]) {
 	read_config(conffile);
 	
 	go_daemon();
+	pthread_create(&fctp_thread, NULL, fctp_server, dataloc);
+
 	dserv_ai = get_server_address(dirserver, DCPPORTSTR, NULL);
 	connect_dirserv();
 
@@ -393,7 +398,7 @@ void write_file(struct client_info *info, char *path, int length) {
 	DEBUGPRINT("dataloc: %s, dirmsg->path: %s", dataloc, path);
 	strcpy(localpath, dataloc);
 	strcat(localpath, path);
-	NO_INTR(ret = open(localpath, O_CREAT|O_APPEND, S_IRUSR|S_IWUSR));
+	NO_INTR(ret = open(localpath, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR));
 	syscallerr(ret, "unable to create/open local file %s", localpath);
 	lfd = ret;
 	ret = recvfile(info->datasd, lfd, length);
